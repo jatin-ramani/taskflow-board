@@ -1,0 +1,263 @@
+// TaskFlow — Prisma Schema for MongoDB
+// Run `npx prisma generate` after changes
+// Run `npx prisma db push` to sync with MongoDB
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER
+// ============================================
+enum SystemRole {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+model User {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String     @unique
+  password  String
+  avatar    String?
+  role      SystemRole @default(MEMBER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  ownedProjects    Project[]       @relation("ProjectOwner")
+  projectMembers   ProjectMember[]
+  assignedTasks    Task[]          @relation("TaskAssignee")
+  createdTasks     Task[]          @relation("TaskCreator")
+  comments         Comment[]
+  timeEntries      TimeEntry[]
+  notifications    Notification[]
+  activities       Activity[]
+}
+
+// ============================================
+// PROJECT
+// ============================================
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+}
+
+model Project {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  color       String        @default("#6d5bf7")
+  icon        String        @default("folder")
+  status      ProjectStatus @default(ACTIVE)
+  ownerId     String        @db.ObjectId
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  owner   User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members ProjectMember[]
+  columns Column[]
+  tasks   Task[]
+  activities Activity[]
+}
+
+// ============================================
+// PROJECT MEMBER
+// ============================================
+enum ProjectRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+model ProjectMember {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String      @db.ObjectId
+  userId    String      @db.ObjectId
+  role      ProjectRole @default(EDITOR)
+  joinedAt  DateTime    @default(now())
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+// ============================================
+// COLUMN (Board columns)
+// ============================================
+model Column {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  color     String @default("#6d5bf7")
+  position  Int
+  projectId String @db.ObjectId
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+}
+
+// ============================================
+// TASK
+// ============================================
+enum Priority {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+model Task {
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String?
+  priority        Priority   @default(NONE)
+  status          TaskStatus @default(TODO)
+  position        Int        @default(0)
+  dueDate         DateTime?
+  startDate       DateTime?
+  completedAt     DateTime?
+  totalTimeLogged Int        @default(0) // seconds
+  tags            String[]
+  attachments     String[]
+
+  // Foreign keys
+  projectId    String  @db.ObjectId
+  columnId     String  @db.ObjectId
+  assigneeId   String? @db.ObjectId
+  creatorId    String  @db.ObjectId
+  parentTaskId String? @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  column   Column  @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator  User    @relation("TaskCreator", fields: [creatorId], references: [id])
+
+  // Self-relation for subtasks
+  parentTask Task?  @relation("SubTasks", fields: [parentTaskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subtasks   Task[] @relation("SubTasks")
+
+  // Other relations
+  comments    Comment[]
+  timeEntries TimeEntry[]
+  activities  Activity[]
+}
+
+// ============================================
+// COMMENT
+// ============================================
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  mentions  String[] // User IDs mentioned
+  taskId    String   @db.ObjectId
+  authorId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+}
+
+// ============================================
+// TIME ENTRY
+// ============================================
+model TimeEntry {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?     // seconds
+  description String?
+  isRunning   Boolean  @default(false)
+  taskId      String   @db.ObjectId
+  userId      String   @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  // Relations
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ============================================
+// NOTIFICATION
+// ============================================
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  COMMENT_ADDED
+  COMMENT_MENTION
+  DUE_DATE_APPROACHING
+  PROJECT_INVITE
+  TIME_LOGGED
+}
+
+model Notification {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  type             NotificationType
+  title            String
+  message          String
+  isRead           Boolean          @default(false)
+  userId           String           @db.ObjectId
+  actorId          String?          @db.ObjectId
+  relatedTaskId    String?          @db.ObjectId
+  relatedProjectId String?          @db.ObjectId
+  createdAt        DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// ACTIVITY LOG
+// ============================================
+enum ActivityAction {
+  CREATED
+  UPDATED
+  MOVED
+  COMPLETED
+  COMMENTED
+  TIME_LOGGED
+  ASSIGNED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+}
+
+model Activity {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  action    ActivityAction
+  details   String?        // JSON string with additional details
+  taskId    String?        @db.ObjectId
+  projectId String?        @db.ObjectId
+  userId    String         @db.ObjectId
+  createdAt DateTime       @default(now())
+
+  // Relations
+  task    Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+}
