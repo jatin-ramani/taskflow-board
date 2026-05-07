@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: (parsed.error as { errors: { message: string }[] }).errors[0].message },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }

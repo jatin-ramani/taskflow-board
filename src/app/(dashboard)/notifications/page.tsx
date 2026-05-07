@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Bookmarks, Archive, AtSign, Plus, Filter, ArrowUpDown, LayoutGrid, Sparkles, X, MoreHorizontal, CheckCircle2 } from "lucide-react";
+import { Bell, Bookmark, Archive, AtSign, Plus, Filter, ArrowUpDown, LayoutGrid, Sparkles, X, MoreHorizontal, CheckCircle2 } from "lucide-react";
 import { getInitials, timeAgo } from "@/lib/utils";
 
 export default function InboxPage() {

@@ -49,7 +49,9 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const parsed = createTaskSchema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: (parsed.error as { errors: { message: string }[] }).errors[0].message }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
 
     const { title, description, priority, projectId, columnId, assigneeId, dueDate, startDate, parentTaskId, tags } = parsed.data;
 

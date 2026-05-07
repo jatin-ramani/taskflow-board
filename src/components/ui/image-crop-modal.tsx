@@ -93,7 +93,7 @@ export function ImageCropModal({ image, onCropComplete, onCancel }: ImageCropMod
             zoom={zoom}
             rotation={rotation}
             aspect={1}
-            shape="round"
+            cropShape="round"
             showGrid={false}
             onCropChange={onCropChange}
             onCropComplete={onCropCompleteInternal}

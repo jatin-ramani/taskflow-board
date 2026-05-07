@@ -238,7 +238,11 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
       id: "temp-" + Date.now(),
       content: newComment,
       createdAt: new Date().toISOString(),
-      author: { name: session?.user?.name || "Me", avatar: session?.user?.image || (session?.user as any)?.avatar || null },
+      author: { 
+        id: session?.user?.id || "temp",
+        name: session?.user?.name || "Me", 
+        avatar: session?.user?.image || (session?.user as any)?.avatar || null 
+      },
       authorId: session?.user?.id
     };
     setTask(prev => prev ? { ...prev, comments: [tempComment, ...(prev.comments || [])] } : null);
