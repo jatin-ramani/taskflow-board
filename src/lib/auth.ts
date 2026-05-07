@@ -1,7 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
 import prisma from "@/lib/prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -13,57 +12,64 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const parsedCredentials = z
-          .object({
-            email: z.string().email(),
-            password: z.string().min(6),
-          })
-          .safeParse(credentials);
+        if (!credentials?.email || !credentials?.password) return null;
 
-        if (!parsedCredentials.success) return null;
+        const email = (credentials.email as string).toLowerCase();
+        const password = credentials.password as string;
 
-        const { email, password } = parsedCredentials.data;
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email },
+          });
 
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
-        });
+          if (!user || !user.password) return null;
 
-        if (!user) return null;
+          const passwordsMatch = await bcrypt.compare(password, user.password);
+          if (!passwordsMatch) return null;
 
-        const passwordsMatch = await bcrypt.compare(password, user.password);
-        if (!passwordsMatch) return null;
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.avatar,
-          role: user.role,
-        };
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.avatar,
+            role: user.role as any,
+          };
+        } catch (error) {
+          console.error("Auth error:", error);
+          return null;
+        }
       },
     }),
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   pages: {
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role;
+        token.role = (user as any).role;
+        token.image = (user as any).image;
+      }
+      if (trigger === "update" && session?.user) {
+        token.image = session.user.image || token.image;
+        token.name = session.user.name || token.name;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && token) {
         session.user.id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
+        (session.user as any).role = token.role as string;
+        session.user.image = token.image as string;
+        (session.user as any).avatar = token.image as string;
       }
       return session;
     },
   },
+  secret: process.env.AUTH_SECRET,
 });

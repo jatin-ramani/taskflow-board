@@ -30,7 +30,25 @@ export default function InboxPage() {
       {/* Tabs */}
       <div style={{ padding: "0 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "24px" }}>
         {tabs.map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "12px 0", fontSize: "14px", fontWeight: activeTab === tab.id ? 600 : 400, color: activeTab === tab.id ? "var(--text-primary)" : "var(--text-tertiary)", borderBottom: activeTab === tab.id ? "2px solid var(--text-primary)" : "none", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
+          <button 
+            key={tab.id} 
+            onClick={() => setActiveTab(tab.id)} 
+            style={{ 
+              padding: "12px 0", 
+              fontSize: "14px", 
+              fontWeight: activeTab === tab.id ? 600 : 400, 
+              color: activeTab === tab.id ? "var(--text-primary)" : "var(--text-tertiary)", 
+              borderTop: "none",
+              borderLeft: "none",
+              borderRight: "none",
+              borderBottom: activeTab === tab.id ? "2px solid var(--text-primary)" : "2px solid transparent", 
+              background: "transparent", 
+              cursor: "pointer", 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "8px" 
+            }}
+          >
             {tab.label}
           </button>
         ))}

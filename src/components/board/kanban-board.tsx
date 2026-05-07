@@ -5,7 +5,6 @@ import { DndContext, closestCorners, DragEndEvent, DragOverEvent, DragStartEvent
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { BoardColumn } from "./board-column";
 import { TaskCard } from "./task-card";
-import { TaskDetailPanel } from "../task/task-detail-panel";
 import { Plus, Loader2 } from "lucide-react";
 
 interface Column { id: string; name: string; color: string; position: number; tasks: Task[]; }
@@ -17,13 +16,17 @@ interface Task {
   _count: { subtasks: number; comments: number };
 }
 
-interface KanbanBoardProps { projectId: string; }
+interface KanbanBoardProps { 
+  projectId: string; 
+  onTaskClick: (taskId: string) => void;
+  externalTaskId?: string | null;
+  refreshKey?: number;
+}
 
-export function KanbanBoard({ projectId }: KanbanBoardProps) {
+export function KanbanBoard({ projectId, onTaskClick, externalTaskId, refreshKey }: KanbanBoardProps) {
   const [columns, setColumns] = useState<Column[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -34,13 +37,16 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       const res = await fetch(`/api/projects/${projectId}`);
       if (res.ok) {
         const data = await res.json();
-        setColumns(data.columns || []);
+        const activeCols = data.columns.map((c: any) => ({
+          ...c,
+          tasks: c.tasks.filter((t: any) => t.status !== "DONE")
+        }));
+        setColumns(activeCols || []);
       }
     } catch { } finally { setLoading(false); }
   }, [projectId]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { fetchBoard(); }, [fetchBoard]);
+  useEffect(() => { fetchBoard(); }, [fetchBoard, externalTaskId, refreshKey]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const task = findTask(event.active.id as string);
@@ -133,7 +139,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         <div style={{ display: "flex", gap: "16px", padding: "24px", height: "calc(100vh - 60px - 48px)", overflowX: "auto", alignItems: "flex-start" }}>
           <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
             {columns.map((column) => (
-              <BoardColumn key={column.id} column={column} onAddTask={handleAddTask} onTaskClick={(taskId) => setSelectedTaskId(taskId)} />
+              <BoardColumn key={column.id} column={column} onAddTask={handleAddTask} onTaskClick={onTaskClick} />
             ))}
           </SortableContext>
 
@@ -155,11 +161,6 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           )}
         </DragOverlay>
       </DndContext>
-
-      {/* Task Detail Panel */}
-      {selectedTaskId && (
-        <TaskDetailPanel taskId={selectedTaskId} onClose={() => { setSelectedTaskId(null); fetchBoard(); }} />
-      )}
     </>
   );
 }

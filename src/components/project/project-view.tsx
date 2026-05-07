@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { ProjectHeader } from "./project-header";
 import { KanbanBoard } from "../board/kanban-board";
+import { ProjectListView } from "./project-list-view";
+import { ProjectCalendarView } from "./project-calendar-view";
+import { ProjectDashboardView } from "./project-dashboard-view";
+import { TaskDetailPanel } from "../task/task-detail-panel";
 
 interface ProjectViewProps {
   projectId: string;
@@ -10,18 +14,27 @@ interface ProjectViewProps {
 
 export function ProjectView({ projectId }: ProjectViewProps) {
   const [activeTab, setActiveTab] = useState("board");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <ProjectHeader 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
-      />
-      
-      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-        {activeTab === "board" && <KanbanBoard projectId={projectId} />}
-        
-        {activeTab !== "board" && (
+  const triggerRefresh = () => setRefreshKey(prev => prev + 1);
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "list":
+        return <ProjectListView projectId={projectId} onTaskClick={setSelectedTaskId} refreshKey={refreshKey} />;
+      case "board":
+        return <KanbanBoard projectId={projectId} onTaskClick={setSelectedTaskId} externalTaskId={selectedTaskId} refreshKey={refreshKey} />;
+      case "calendar":
+        return <ProjectCalendarView projectId={projectId} onTaskClick={setSelectedTaskId} />;
+      case "dashboard":
+        return <ProjectDashboardView projectId={projectId} />;
+      case "completed":
+        return <ProjectListView projectId={projectId} onTaskClick={setSelectedTaskId} filterStatus="DONE" refreshKey={refreshKey} />;
+      case "favorites":
+        return <ProjectListView projectId={projectId} onTaskClick={setSelectedTaskId} filterFavorite={true} refreshKey={refreshKey} />;
+      default:
+        return (
           <div style={{ 
             display: "flex", 
             flexDirection: "column", 
@@ -39,7 +52,7 @@ export function ProjectView({ projectId }: ProjectViewProps) {
               style={{
                 marginTop: "12px",
                 padding: "8px 16px",
-                borderRadius: "8px",
+                borderRadius: "var(--radius-md)",
                 background: "var(--accent)",
                 color: "#fff",
                 border: "none",
@@ -51,8 +64,29 @@ export function ProjectView({ projectId }: ProjectViewProps) {
               Go back to Board
             </button>
           </div>
-        )}
+        );
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      <ProjectHeader 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        projectId={projectId}
+      />
+      
+      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+        {renderContent()}
       </div>
+
+      {selectedTaskId && (
+        <TaskDetailPanel 
+          taskId={selectedTaskId} 
+          onClose={() => setSelectedTaskId(null)} 
+          onUpdate={triggerRefresh}
+        />
+      )}
     </div>
   );
 }

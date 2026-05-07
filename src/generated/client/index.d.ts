@@ -6218,6 +6218,7 @@ export namespace Prisma {
     startDate: Date | null
     completedAt: Date | null
     totalTimeLogged: number | null
+    isFavorite: boolean | null
     projectId: string | null
     columnId: string | null
     assigneeId: string | null
@@ -6238,6 +6239,7 @@ export namespace Prisma {
     startDate: Date | null
     completedAt: Date | null
     totalTimeLogged: number | null
+    isFavorite: boolean | null
     projectId: string | null
     columnId: string | null
     assigneeId: string | null
@@ -6258,6 +6260,7 @@ export namespace Prisma {
     startDate: number
     completedAt: number
     totalTimeLogged: number
+    isFavorite: number
     tags: number
     attachments: number
     projectId: number
@@ -6292,6 +6295,7 @@ export namespace Prisma {
     startDate?: true
     completedAt?: true
     totalTimeLogged?: true
+    isFavorite?: true
     projectId?: true
     columnId?: true
     assigneeId?: true
@@ -6312,6 +6316,7 @@ export namespace Prisma {
     startDate?: true
     completedAt?: true
     totalTimeLogged?: true
+    isFavorite?: true
     projectId?: true
     columnId?: true
     assigneeId?: true
@@ -6332,6 +6337,7 @@ export namespace Prisma {
     startDate?: true
     completedAt?: true
     totalTimeLogged?: true
+    isFavorite?: true
     tags?: true
     attachments?: true
     projectId?: true
@@ -6441,6 +6447,7 @@ export namespace Prisma {
     startDate: Date | null
     completedAt: Date | null
     totalTimeLogged: number
+    isFavorite: boolean
     tags: string[]
     attachments: string[]
     projectId: string
@@ -6482,6 +6489,7 @@ export namespace Prisma {
     startDate?: boolean
     completedAt?: boolean
     totalTimeLogged?: boolean
+    isFavorite?: boolean
     tags?: boolean
     attachments?: boolean
     projectId?: boolean
@@ -6514,6 +6522,7 @@ export namespace Prisma {
     startDate?: boolean
     completedAt?: boolean
     totalTimeLogged?: boolean
+    isFavorite?: boolean
     tags?: boolean
     attachments?: boolean
     projectId?: boolean
@@ -6564,6 +6573,7 @@ export namespace Prisma {
       startDate: Date | null
       completedAt: Date | null
       totalTimeLogged: number
+      isFavorite: boolean
       tags: string[]
       attachments: string[]
       projectId: string
@@ -7021,6 +7031,7 @@ export namespace Prisma {
     readonly startDate: FieldRef<"Task", 'DateTime'>
     readonly completedAt: FieldRef<"Task", 'DateTime'>
     readonly totalTimeLogged: FieldRef<"Task", 'Int'>
+    readonly isFavorite: FieldRef<"Task", 'Boolean'>
     readonly tags: FieldRef<"Task", 'String[]'>
     readonly attachments: FieldRef<"Task", 'String[]'>
     readonly projectId: FieldRef<"Task", 'String'>
@@ -11605,6 +11616,7 @@ export namespace Prisma {
     startDate: 'startDate',
     completedAt: 'completedAt',
     totalTimeLogged: 'totalTimeLogged',
+    isFavorite: 'isFavorite',
     tags: 'tags',
     attachments: 'attachments',
     projectId: 'projectId',
@@ -12172,6 +12184,7 @@ export namespace Prisma {
     startDate?: DateTimeNullableFilter<"Task"> | Date | string | null
     completedAt?: DateTimeNullableFilter<"Task"> | Date | string | null
     totalTimeLogged?: IntFilter<"Task"> | number
+    isFavorite?: BoolFilter<"Task"> | boolean
     tags?: StringNullableListFilter<"Task">
     attachments?: StringNullableListFilter<"Task">
     projectId?: StringFilter<"Task"> | string
@@ -12203,6 +12216,7 @@ export namespace Prisma {
     startDate?: SortOrder
     completedAt?: SortOrder
     totalTimeLogged?: SortOrder
+    isFavorite?: SortOrder
     tags?: SortOrder
     attachments?: SortOrder
     projectId?: SortOrder
@@ -12237,6 +12251,7 @@ export namespace Prisma {
     startDate?: DateTimeNullableFilter<"Task"> | Date | string | null
     completedAt?: DateTimeNullableFilter<"Task"> | Date | string | null
     totalTimeLogged?: IntFilter<"Task"> | number
+    isFavorite?: BoolFilter<"Task"> | boolean
     tags?: StringNullableListFilter<"Task">
     attachments?: StringNullableListFilter<"Task">
     projectId?: StringFilter<"Task"> | string
@@ -12268,6 +12283,7 @@ export namespace Prisma {
     startDate?: SortOrder
     completedAt?: SortOrder
     totalTimeLogged?: SortOrder
+    isFavorite?: SortOrder
     tags?: SortOrder
     attachments?: SortOrder
     projectId?: SortOrder
@@ -12298,6 +12314,7 @@ export namespace Prisma {
     startDate?: DateTimeNullableWithAggregatesFilter<"Task"> | Date | string | null
     completedAt?: DateTimeNullableWithAggregatesFilter<"Task"> | Date | string | null
     totalTimeLogged?: IntWithAggregatesFilter<"Task"> | number
+    isFavorite?: BoolWithAggregatesFilter<"Task"> | boolean
     tags?: StringNullableListFilter<"Task">
     attachments?: StringNullableListFilter<"Task">
     projectId?: StringWithAggregatesFilter<"Task"> | string
@@ -12924,6 +12941,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -12950,6 +12968,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -12975,6 +12994,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13000,6 +13020,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -13026,6 +13047,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -13047,6 +13069,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13063,6 +13086,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -13782,6 +13806,11 @@ export namespace Prisma {
     isSet?: boolean
   }
 
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type StringNullableListFilter<$PrismaModel = never> = {
     equals?: string[] | ListStringFieldRefInput<$PrismaModel> | null
     has?: string | StringFieldRefInput<$PrismaModel> | null
@@ -13816,6 +13845,7 @@ export namespace Prisma {
     startDate?: SortOrder
     completedAt?: SortOrder
     totalTimeLogged?: SortOrder
+    isFavorite?: SortOrder
     tags?: SortOrder
     attachments?: SortOrder
     projectId?: SortOrder
@@ -13843,6 +13873,7 @@ export namespace Prisma {
     startDate?: SortOrder
     completedAt?: SortOrder
     totalTimeLogged?: SortOrder
+    isFavorite?: SortOrder
     projectId?: SortOrder
     columnId?: SortOrder
     assigneeId?: SortOrder
@@ -13863,6 +13894,7 @@ export namespace Prisma {
     startDate?: SortOrder
     completedAt?: SortOrder
     totalTimeLogged?: SortOrder
+    isFavorite?: SortOrder
     projectId?: SortOrder
     columnId?: SortOrder
     assigneeId?: SortOrder
@@ -13912,6 +13944,14 @@ export namespace Prisma {
     isSet?: boolean
   }
 
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
   export type TaskRelationFilter = {
     is?: TaskWhereInput
     isNot?: TaskWhereInput
@@ -13955,11 +13995,6 @@ export namespace Prisma {
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
     isSet?: boolean
-  }
-
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type TimeEntryCountOrderByAggregateInput = {
@@ -14021,14 +14056,6 @@ export namespace Prisma {
     _min?: NestedIntNullableFilter<$PrismaModel>
     _max?: NestedIntNullableFilter<$PrismaModel>
     isSet?: boolean
-  }
-
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type EnumNotificationTypeFilter<$PrismaModel = never> = {
@@ -14881,6 +14908,10 @@ export namespace Prisma {
     unset?: boolean
   }
 
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
+  }
+
   export type TaskUpdatetagsInput = {
     set?: string[]
     push?: string | string[]
@@ -15103,10 +15134,6 @@ export namespace Prisma {
     multiply?: number
     divide?: number
     unset?: boolean
-  }
-
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
   }
 
   export type TaskUpdateOneRequiredWithoutTimeEntriesNestedInput = {
@@ -15409,6 +15436,11 @@ export namespace Prisma {
     isSet?: boolean
   }
 
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type NestedEnumPriorityWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.Priority | EnumPriorityFieldRefInput<$PrismaModel>
     in?: $Enums.Priority[] | ListEnumPriorityFieldRefInput<$PrismaModel>
@@ -15444,9 +15476,12 @@ export namespace Prisma {
     isSet?: boolean
   }
 
-  export type NestedBoolFilter<$PrismaModel = never> = {
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -15476,14 +15511,6 @@ export namespace Prisma {
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
     isSet?: boolean
-  }
-
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type NestedEnumNotificationTypeFilter<$PrismaModel = never> = {
@@ -15593,6 +15620,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -15618,6 +15646,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -15652,6 +15681,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -15677,6 +15707,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -15906,6 +15937,7 @@ export namespace Prisma {
     startDate?: DateTimeNullableFilter<"Task"> | Date | string | null
     completedAt?: DateTimeNullableFilter<"Task"> | Date | string | null
     totalTimeLogged?: IntFilter<"Task"> | number
+    isFavorite?: BoolFilter<"Task"> | boolean
     tags?: StringNullableListFilter<"Task">
     attachments?: StringNullableListFilter<"Task">
     projectId?: StringFilter<"Task"> | string
@@ -16154,6 +16186,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -16179,6 +16212,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     columnId: string
@@ -16555,6 +16589,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -16580,6 +16615,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -16807,6 +16843,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -16832,6 +16869,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -16862,6 +16900,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -16887,6 +16926,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -17170,6 +17210,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -17194,6 +17235,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -17283,6 +17325,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -17308,6 +17351,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -17389,6 +17433,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -17413,6 +17458,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -17483,6 +17529,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -17508,6 +17555,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -17589,6 +17637,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -17613,6 +17662,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -17769,6 +17819,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     createdAt?: Date | string
@@ -17794,6 +17845,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -17910,6 +17962,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -17934,6 +17987,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -18061,6 +18115,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -18082,6 +18137,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -18199,6 +18255,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18223,6 +18280,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -18247,6 +18305,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -18267,6 +18326,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18291,6 +18351,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -18315,6 +18376,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -18461,6 +18523,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     columnId: string
@@ -18528,6 +18591,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18552,6 +18616,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     columnId?: StringFieldUpdateOperationsInput | string
@@ -18576,6 +18641,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     columnId?: StringFieldUpdateOperationsInput | string
@@ -18621,6 +18687,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -18641,6 +18708,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18665,6 +18733,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -18689,6 +18758,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -18710,6 +18780,7 @@ export namespace Prisma {
     startDate?: Date | string | null
     completedAt?: Date | string | null
     totalTimeLogged?: number
+    isFavorite?: boolean
     tags?: TaskCreatetagsInput | string[]
     attachments?: TaskCreateattachmentsInput | string[]
     projectId: string
@@ -18759,6 +18830,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18783,6 +18855,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string
@@ -18807,6 +18880,7 @@ export namespace Prisma {
     startDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     totalTimeLogged?: IntFieldUpdateOperationsInput | number
+    isFavorite?: BoolFieldUpdateOperationsInput | boolean
     tags?: TaskUpdatetagsInput | string[]
     attachments?: TaskUpdateattachmentsInput | string[]
     projectId?: StringFieldUpdateOperationsInput | string

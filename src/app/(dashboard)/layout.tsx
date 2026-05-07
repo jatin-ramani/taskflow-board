@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { ToastProvider } from "@/components/layout/toast-provider";
 
 export default async function DashboardLayout({
   children,
@@ -16,7 +17,9 @@ export default async function DashboardLayout({
 
   return (
     <SessionProvider session={session}>
-      <DashboardShell>{children}</DashboardShell>
+      <ToastProvider>
+        <DashboardShell>{children}</DashboardShell>
+      </ToastProvider>
     </SessionProvider>
   );
 }

@@ -55,12 +55,13 @@ export function BoardColumn({ column, onAddTask, onTaskClick }: BoardColumnProps
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: column.color }} />
           <span style={{ fontSize: "14px", fontWeight: 600 }}>{column.name}</span>
-          <span style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "var(--bg-tertiary)", padding: "2px 8px", borderRadius: "var(--radius-full)", fontWeight: 500 }}>
+          <span data-tooltip="Task count" style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "var(--bg-tertiary)", padding: "2px 8px", borderRadius: "var(--radius-full)", fontWeight: 500 }}>
             {column.tasks.length}
           </span>
         </div>
         <button
           onClick={() => setShowAddTask(true)}
+          data-tooltip="Add task"
           style={{ width: "24px", height: "24px", borderRadius: "4px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-tertiary)", transition: "var(--transition-fast)" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-tertiary)"; e.currentTarget.style.color = "var(--text-primary)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-tertiary)"; }}

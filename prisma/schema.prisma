@@ -138,6 +138,7 @@ model Task {
   startDate       DateTime?
   completedAt     DateTime?
   totalTimeLogged Int        @default(0) // seconds
+  isFavorite      Boolean    @default(false)
   tags            String[]
   attachments     String[]
 

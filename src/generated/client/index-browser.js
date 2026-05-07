@@ -162,6 +162,7 @@ exports.Prisma.TaskScalarFieldEnum = {
   startDate: 'startDate',
   completedAt: 'completedAt',
   totalTimeLogged: 'totalTimeLogged',
+  isFavorite: 'isFavorite',
   tags: 'tags',
   attachments: 'attachments',
   projectId: 'projectId',

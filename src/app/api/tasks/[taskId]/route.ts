@@ -65,6 +65,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ task
     if (body.position !== undefined) updateData.position = body.position;
     if (body.assigneeId !== undefined) updateData.assigneeId = body.assigneeId || null;
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+    if (body.startDate !== undefined) updateData.startDate = body.startDate ? new Date(body.startDate) : null;
+    if (body.isFavorite !== undefined) updateData.isFavorite = body.isFavorite;
     if (body.tags !== undefined) updateData.tags = body.tags;
 
     // If marking as done

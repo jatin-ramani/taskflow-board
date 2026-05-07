@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { CheckCircle2, Clock, Plus, ChevronRight, LayoutGrid, Calendar, Users, Settings2, MoreHorizontal, Rocket, BookOpen, Layers } from "lucide-react";
+import { CheckCircle2, Clock, Plus, ChevronRight, LayoutGrid, Calendar, Users, Settings2, MoreHorizontal, Rocket, BookOpen, Layers, Lock } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -62,7 +62,22 @@ export default function DashboardPage() {
           <div style={{ padding: "0 24px" }}>
             <div style={{ display: "flex", gap: "24px", borderBottom: "1px solid var(--border)" }}>
               {["Upcoming", "Overdue", "Completed"].map((tab) => (
-                <button key={tab} onClick={() => setActiveTab(tab.toLowerCase())} style={{ padding: "12px 0", fontSize: "14px", fontWeight: activeTab === tab.toLowerCase() ? 600 : 400, color: activeTab === tab.toLowerCase() ? "var(--text-primary)" : "var(--text-tertiary)", borderBottom: activeTab === tab.toLowerCase() ? "2px solid var(--text-primary)" : "none", background: "transparent", border: "none", cursor: "pointer" }}>
+                <button 
+                  key={tab} 
+                  onClick={() => setActiveTab(tab.toLowerCase())} 
+                  style={{ 
+                    padding: "12px 0", 
+                    fontSize: "14px", 
+                    fontWeight: activeTab === tab.toLowerCase() ? 600 : 400, 
+                    color: activeTab === tab.toLowerCase() ? "var(--text-primary)" : "var(--text-tertiary)", 
+                    borderTop: "none",
+                    borderLeft: "none",
+                    borderRight: "none",
+                    borderBottom: activeTab === tab.toLowerCase() ? "2px solid var(--text-primary)" : "2px solid transparent", 
+                    background: "transparent", 
+                    cursor: "pointer" 
+                  }}
+                >
                   {tab}
                 </button>
               ))}

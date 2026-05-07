@@ -4,9 +4,10 @@ import { List, Kanban, Calendar, LayoutDashboard, FileText, Plus, Filter, ArrowU
 interface ProjectHeaderProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  projectId?: string;
 }
 
-export function ProjectHeader({ activeTab, onTabChange }: ProjectHeaderProps) {
+export function ProjectHeader({ activeTab, onTabChange, projectId }: ProjectHeaderProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -23,6 +24,8 @@ export function ProjectHeader({ activeTab, onTabChange }: ProjectHeaderProps) {
     { id: "board", label: "Board", icon: Kanban },
     { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "completed", label: "Completed", icon: Check },
+    { id: "favorites", label: "Favorites", icon: ThumbsUp },
     { id: "files", label: "Files", icon: FileText },
   ];
 
@@ -75,7 +78,9 @@ export function ProjectHeader({ activeTab, onTabChange }: ProjectHeaderProps) {
                   padding: "0 12px",
                   height: "100%",
                   background: "transparent",
-                  border: "none",
+                  borderTop: "none",
+                  borderLeft: "none",
+                  borderRight: "none",
                   borderBottom: isActive ? "2px solid var(--accent)" : "2px solid transparent",
                   color: isActive ? "var(--text-primary)" : "var(--text-tertiary)",
                   fontSize: "14px",
@@ -210,21 +215,6 @@ export function ProjectHeader({ activeTab, onTabChange }: ProjectHeaderProps) {
             onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-secondary)"}
             onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
             <Settings2 size={14} /> Options
-          </button>
-
-          <button style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "32px",
-            height: "32px",
-            borderRadius: "6px",
-            background: "transparent",
-            border: "none",
-            color: "var(--text-tertiary)",
-            cursor: "pointer"
-          }}>
-            <Search size={16} />
           </button>
         </div>
       </div>

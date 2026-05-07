@@ -97,7 +97,7 @@ export function TaskCard({ task, onClick, isDragOverlay }: TaskCardProps) {
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             {/* Due Date */}
             {task.dueDate && (
-              <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: isOverdue ? "var(--danger)" : "var(--text-tertiary)" }}>
+              <div data-tooltip="Due date" style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: isOverdue ? "var(--danger)" : "var(--text-tertiary)" }}>
                 <Calendar size={11} />
                 {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
               </div>
@@ -105,7 +105,7 @@ export function TaskCard({ task, onClick, isDragOverlay }: TaskCardProps) {
 
             {/* Time Logged */}
             {task.totalTimeLogged > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
+              <div data-tooltip="Focus time" style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
                 <Clock size={11} />
                 {formatDuration(task.totalTimeLogged)}
               </div>
@@ -113,7 +113,7 @@ export function TaskCard({ task, onClick, isDragOverlay }: TaskCardProps) {
 
             {/* Subtasks */}
             {task._count.subtasks > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
+              <div data-tooltip="Subtasks" style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
                 <ListChecks size={11} />
                 {task._count.subtasks}
               </div>
@@ -121,7 +121,7 @@ export function TaskCard({ task, onClick, isDragOverlay }: TaskCardProps) {
 
             {/* Comments */}
             {task._count.comments > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
+              <div data-tooltip="Comments" style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
                 <MessageSquare size={11} />
                 {task._count.comments}
               </div>
