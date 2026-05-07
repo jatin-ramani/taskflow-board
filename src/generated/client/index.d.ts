@@ -73,9 +73,12 @@ export type SystemRole = (typeof SystemRole)[keyof typeof SystemRole]
 
 
 export const ProjectStatus: {
-  ACTIVE: 'ACTIVE',
-  ARCHIVED: 'ARCHIVED',
-  COMPLETED: 'COMPLETED'
+  ON_TRACK: 'ON_TRACK',
+  AT_RISK: 'AT_RISK',
+  OFF_TRACK: 'OFF_TRACK',
+  ON_HOLD: 'ON_HOLD',
+  COMPLETE: 'COMPLETE',
+  DROPPED: 'DROPPED'
 };
 
 export type ProjectStatus = (typeof ProjectStatus)[keyof typeof ProjectStatus]
@@ -1674,6 +1677,7 @@ export namespace Prisma {
     comments: number
     timeEntries: number
     notifications: number
+    sentNotifications: number
     activities: number
   }
 
@@ -1685,6 +1689,7 @@ export namespace Prisma {
     comments?: boolean | UserCountOutputTypeCountCommentsArgs
     timeEntries?: boolean | UserCountOutputTypeCountTimeEntriesArgs
     notifications?: boolean | UserCountOutputTypeCountNotificationsArgs
+    sentNotifications?: boolean | UserCountOutputTypeCountSentNotificationsArgs
     activities?: boolean | UserCountOutputTypeCountActivitiesArgs
   }
 
@@ -1745,6 +1750,13 @@ export namespace Prisma {
    * UserCountOutputType without action
    */
   export type UserCountOutputTypeCountNotificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: NotificationWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountSentNotificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: NotificationWhereInput
   }
 
@@ -2102,6 +2114,7 @@ export namespace Prisma {
     comments?: boolean | User$commentsArgs<ExtArgs>
     timeEntries?: boolean | User$timeEntriesArgs<ExtArgs>
     notifications?: boolean | User$notificationsArgs<ExtArgs>
+    sentNotifications?: boolean | User$sentNotificationsArgs<ExtArgs>
     activities?: boolean | User$activitiesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
@@ -2126,6 +2139,7 @@ export namespace Prisma {
     comments?: boolean | User$commentsArgs<ExtArgs>
     timeEntries?: boolean | User$timeEntriesArgs<ExtArgs>
     notifications?: boolean | User$notificationsArgs<ExtArgs>
+    sentNotifications?: boolean | User$sentNotificationsArgs<ExtArgs>
     activities?: boolean | User$activitiesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -2141,6 +2155,7 @@ export namespace Prisma {
       comments: Prisma.$CommentPayload<ExtArgs>[]
       timeEntries: Prisma.$TimeEntryPayload<ExtArgs>[]
       notifications: Prisma.$NotificationPayload<ExtArgs>[]
+      sentNotifications: Prisma.$NotificationPayload<ExtArgs>[]
       activities: Prisma.$ActivityPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -2557,6 +2572,8 @@ export namespace Prisma {
     timeEntries<T extends User$timeEntriesArgs<ExtArgs> = {}>(args?: Subset<T, User$timeEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TimeEntryPayload<ExtArgs>, T, 'findMany'> | Null>;
 
     notifications<T extends User$notificationsArgs<ExtArgs> = {}>(args?: Subset<T, User$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, 'findMany'> | Null>;
+
+    sentNotifications<T extends User$sentNotificationsArgs<ExtArgs> = {}>(args?: Subset<T, User$sentNotificationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, 'findMany'> | Null>;
 
     activities<T extends User$activitiesArgs<ExtArgs> = {}>(args?: Subset<T, User$activitiesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ActivityPayload<ExtArgs>, T, 'findMany'> | Null>;
 
@@ -3045,6 +3062,26 @@ export namespace Prisma {
    * User.notifications
    */
   export type User$notificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Notification
+     */
+    select?: NotificationSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
+    where?: NotificationWhereInput
+    orderBy?: NotificationOrderByWithRelationInput | NotificationOrderByWithRelationInput[]
+    cursor?: NotificationWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: NotificationScalarFieldEnum | NotificationScalarFieldEnum[]
+  }
+
+  /**
+   * User.sentNotifications
+   */
+  export type User$sentNotificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
      * Select specific fields to fetch from the Notification
      */
@@ -9720,6 +9757,7 @@ export namespace Prisma {
     relatedProjectId?: boolean
     createdAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
+    actor?: boolean | Notification$actorArgs<ExtArgs>
   }, ExtArgs["result"]["notification"]>
 
   export type NotificationSelectScalar = {
@@ -9738,6 +9776,7 @@ export namespace Prisma {
 
   export type NotificationInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
+    actor?: boolean | Notification$actorArgs<ExtArgs>
   }
 
 
@@ -9745,6 +9784,7 @@ export namespace Prisma {
     name: "Notification"
     objects: {
       user: Prisma.$UserPayload<ExtArgs>
+      actor: Prisma.$UserPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -10151,6 +10191,8 @@ export namespace Prisma {
 
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, 'findUniqueOrThrow'> | Null, Null, ExtArgs>;
 
+    actor<T extends Notification$actorArgs<ExtArgs> = {}>(args?: Subset<T, Notification$actorArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, 'findUniqueOrThrow'> | null, null, ExtArgs>;
+
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -10512,6 +10554,21 @@ export namespace Prisma {
      * Additional options to pass to the `aggregate` command ${@link https://docs.mongodb.com/manual/reference/command/aggregate/#command-fields MongoDB Docs}.
      */
     options?: InputJsonValue
+  }
+
+  /**
+   * Notification.actor
+   */
+  export type Notification$actorArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the User
+     */
+    select?: UserSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserInclude<ExtArgs> | null
+    where?: UserWhereInput
   }
 
   /**
@@ -11892,6 +11949,7 @@ export namespace Prisma {
     comments?: CommentListRelationFilter
     timeEntries?: TimeEntryListRelationFilter
     notifications?: NotificationListRelationFilter
+    sentNotifications?: NotificationListRelationFilter
     activities?: ActivityListRelationFilter
   }
 
@@ -11911,6 +11969,7 @@ export namespace Prisma {
     comments?: CommentOrderByRelationAggregateInput
     timeEntries?: TimeEntryOrderByRelationAggregateInput
     notifications?: NotificationOrderByRelationAggregateInput
+    sentNotifications?: NotificationOrderByRelationAggregateInput
     activities?: ActivityOrderByRelationAggregateInput
   }
 
@@ -11933,6 +11992,7 @@ export namespace Prisma {
     comments?: CommentListRelationFilter
     timeEntries?: TimeEntryListRelationFilter
     notifications?: NotificationListRelationFilter
+    sentNotifications?: NotificationListRelationFilter
     activities?: ActivityListRelationFilter
   }, "id" | "email">
 
@@ -12489,6 +12549,7 @@ export namespace Prisma {
     relatedProjectId?: StringNullableFilter<"Notification"> | string | null
     createdAt?: DateTimeFilter<"Notification"> | Date | string
     user?: XOR<UserRelationFilter, UserWhereInput>
+    actor?: XOR<UserNullableRelationFilter, UserWhereInput> | null
   }
 
   export type NotificationOrderByWithRelationInput = {
@@ -12503,6 +12564,7 @@ export namespace Prisma {
     relatedProjectId?: SortOrder
     createdAt?: SortOrder
     user?: UserOrderByWithRelationInput
+    actor?: UserOrderByWithRelationInput
   }
 
   export type NotificationWhereUniqueInput = Prisma.AtLeast<{
@@ -12520,6 +12582,7 @@ export namespace Prisma {
     relatedProjectId?: StringNullableFilter<"Notification"> | string | null
     createdAt?: DateTimeFilter<"Notification"> | Date | string
     user?: XOR<UserRelationFilter, UserWhereInput>
+    actor?: XOR<UserNullableRelationFilter, UserWhereInput> | null
   }, "id">
 
   export type NotificationOrderByWithAggregationInput = {
@@ -12641,6 +12704,7 @@ export namespace Prisma {
     comments?: CommentCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
     activities?: ActivityCreateNestedManyWithoutUserInput
   }
 
@@ -12660,6 +12724,7 @@ export namespace Prisma {
     comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
     activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -12678,6 +12743,7 @@ export namespace Prisma {
     comments?: CommentUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
     activities?: ActivityUpdateManyWithoutUserNestedInput
   }
 
@@ -12696,6 +12762,7 @@ export namespace Prisma {
     comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
     activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -13246,11 +13313,11 @@ export namespace Prisma {
     title: string
     message: string
     isRead?: boolean
-    actorId?: string | null
     relatedTaskId?: string | null
     relatedProjectId?: string | null
     createdAt?: Date | string
     user: UserCreateNestedOneWithoutNotificationsInput
+    actor?: UserCreateNestedOneWithoutSentNotificationsInput
   }
 
   export type NotificationUncheckedCreateInput = {
@@ -13271,11 +13338,11 @@ export namespace Prisma {
     title?: StringFieldUpdateOperationsInput | string
     message?: StringFieldUpdateOperationsInput | string
     isRead?: BoolFieldUpdateOperationsInput | boolean
-    actorId?: NullableStringFieldUpdateOperationsInput | string | null
     relatedTaskId?: NullableStringFieldUpdateOperationsInput | string | null
     relatedProjectId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutNotificationsNestedInput
+    actor?: UserUpdateOneWithoutSentNotificationsNestedInput
   }
 
   export type NotificationUncheckedUpdateInput = {
@@ -13308,7 +13375,6 @@ export namespace Prisma {
     title?: StringFieldUpdateOperationsInput | string
     message?: StringFieldUpdateOperationsInput | string
     isRead?: BoolFieldUpdateOperationsInput | boolean
-    actorId?: NullableStringFieldUpdateOperationsInput | string | null
     relatedTaskId?: NullableStringFieldUpdateOperationsInput | string | null
     relatedProjectId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14215,6 +14281,13 @@ export namespace Prisma {
     connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
   }
 
+  export type NotificationCreateNestedManyWithoutActorInput = {
+    create?: XOR<NotificationCreateWithoutActorInput, NotificationUncheckedCreateWithoutActorInput> | NotificationCreateWithoutActorInput[] | NotificationUncheckedCreateWithoutActorInput[]
+    connectOrCreate?: NotificationCreateOrConnectWithoutActorInput | NotificationCreateOrConnectWithoutActorInput[]
+    createMany?: NotificationCreateManyActorInputEnvelope
+    connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+  }
+
   export type ActivityCreateNestedManyWithoutUserInput = {
     create?: XOR<ActivityCreateWithoutUserInput, ActivityUncheckedCreateWithoutUserInput> | ActivityCreateWithoutUserInput[] | ActivityUncheckedCreateWithoutUserInput[]
     connectOrCreate?: ActivityCreateOrConnectWithoutUserInput | ActivityCreateOrConnectWithoutUserInput[]
@@ -14268,6 +14341,13 @@ export namespace Prisma {
     create?: XOR<NotificationCreateWithoutUserInput, NotificationUncheckedCreateWithoutUserInput> | NotificationCreateWithoutUserInput[] | NotificationUncheckedCreateWithoutUserInput[]
     connectOrCreate?: NotificationCreateOrConnectWithoutUserInput | NotificationCreateOrConnectWithoutUserInput[]
     createMany?: NotificationCreateManyUserInputEnvelope
+    connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+  }
+
+  export type NotificationUncheckedCreateNestedManyWithoutActorInput = {
+    create?: XOR<NotificationCreateWithoutActorInput, NotificationUncheckedCreateWithoutActorInput> | NotificationCreateWithoutActorInput[] | NotificationUncheckedCreateWithoutActorInput[]
+    connectOrCreate?: NotificationCreateOrConnectWithoutActorInput | NotificationCreateOrConnectWithoutActorInput[]
+    createMany?: NotificationCreateManyActorInputEnvelope
     connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
   }
 
@@ -14393,6 +14473,20 @@ export namespace Prisma {
     deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
+  export type NotificationUpdateManyWithoutActorNestedInput = {
+    create?: XOR<NotificationCreateWithoutActorInput, NotificationUncheckedCreateWithoutActorInput> | NotificationCreateWithoutActorInput[] | NotificationUncheckedCreateWithoutActorInput[]
+    connectOrCreate?: NotificationCreateOrConnectWithoutActorInput | NotificationCreateOrConnectWithoutActorInput[]
+    upsert?: NotificationUpsertWithWhereUniqueWithoutActorInput | NotificationUpsertWithWhereUniqueWithoutActorInput[]
+    createMany?: NotificationCreateManyActorInputEnvelope
+    set?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    disconnect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    delete?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    update?: NotificationUpdateWithWhereUniqueWithoutActorInput | NotificationUpdateWithWhereUniqueWithoutActorInput[]
+    updateMany?: NotificationUpdateManyWithWhereWithoutActorInput | NotificationUpdateManyWithWhereWithoutActorInput[]
+    deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
+  }
+
   export type ActivityUpdateManyWithoutUserNestedInput = {
     create?: XOR<ActivityCreateWithoutUserInput, ActivityUncheckedCreateWithoutUserInput> | ActivityCreateWithoutUserInput[] | ActivityUncheckedCreateWithoutUserInput[]
     connectOrCreate?: ActivityCreateOrConnectWithoutUserInput | ActivityCreateOrConnectWithoutUserInput[]
@@ -14502,6 +14596,20 @@ export namespace Prisma {
     connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
     update?: NotificationUpdateWithWhereUniqueWithoutUserInput | NotificationUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: NotificationUpdateManyWithWhereWithoutUserInput | NotificationUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
+  }
+
+  export type NotificationUncheckedUpdateManyWithoutActorNestedInput = {
+    create?: XOR<NotificationCreateWithoutActorInput, NotificationUncheckedCreateWithoutActorInput> | NotificationCreateWithoutActorInput[] | NotificationUncheckedCreateWithoutActorInput[]
+    connectOrCreate?: NotificationCreateOrConnectWithoutActorInput | NotificationCreateOrConnectWithoutActorInput[]
+    upsert?: NotificationUpsertWithWhereUniqueWithoutActorInput | NotificationUpsertWithWhereUniqueWithoutActorInput[]
+    createMany?: NotificationCreateManyActorInputEnvelope
+    set?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    disconnect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    delete?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    update?: NotificationUpdateWithWhereUniqueWithoutActorInput | NotificationUpdateWithWhereUniqueWithoutActorInput[]
+    updateMany?: NotificationUpdateManyWithWhereWithoutActorInput | NotificationUpdateManyWithWhereWithoutActorInput[]
     deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
@@ -15158,6 +15266,12 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
+  export type UserCreateNestedOneWithoutSentNotificationsInput = {
+    create?: XOR<UserCreateWithoutSentNotificationsInput, UserUncheckedCreateWithoutSentNotificationsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutSentNotificationsInput
+    connect?: UserWhereUniqueInput
+  }
+
   export type EnumNotificationTypeFieldUpdateOperationsInput = {
     set?: $Enums.NotificationType
   }
@@ -15168,6 +15282,16 @@ export namespace Prisma {
     upsert?: UserUpsertWithoutNotificationsInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutNotificationsInput, UserUpdateWithoutNotificationsInput>, UserUncheckedUpdateWithoutNotificationsInput>
+  }
+
+  export type UserUpdateOneWithoutSentNotificationsNestedInput = {
+    create?: XOR<UserCreateWithoutSentNotificationsInput, UserUncheckedCreateWithoutSentNotificationsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutSentNotificationsInput
+    upsert?: UserUpsertWithoutSentNotificationsInput
+    disconnect?: boolean
+    delete?: UserWhereInput | boolean
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutSentNotificationsInput, UserUpdateWithoutSentNotificationsInput>, UserUncheckedUpdateWithoutSentNotificationsInput>
   }
 
   export type TaskCreateNestedOneWithoutActivitiesInput = {
@@ -15795,10 +15919,10 @@ export namespace Prisma {
     title: string
     message: string
     isRead?: boolean
-    actorId?: string | null
     relatedTaskId?: string | null
     relatedProjectId?: string | null
     createdAt?: Date | string
+    actor?: UserCreateNestedOneWithoutSentNotificationsInput
   }
 
   export type NotificationUncheckedCreateWithoutUserInput = {
@@ -15820,6 +15944,39 @@ export namespace Prisma {
 
   export type NotificationCreateManyUserInputEnvelope = {
     data: NotificationCreateManyUserInput | NotificationCreateManyUserInput[]
+  }
+
+  export type NotificationCreateWithoutActorInput = {
+    id?: string
+    type: $Enums.NotificationType
+    title: string
+    message: string
+    isRead?: boolean
+    relatedTaskId?: string | null
+    relatedProjectId?: string | null
+    createdAt?: Date | string
+    user: UserCreateNestedOneWithoutNotificationsInput
+  }
+
+  export type NotificationUncheckedCreateWithoutActorInput = {
+    id?: string
+    type: $Enums.NotificationType
+    title: string
+    message: string
+    isRead?: boolean
+    userId: string
+    relatedTaskId?: string | null
+    relatedProjectId?: string | null
+    createdAt?: Date | string
+  }
+
+  export type NotificationCreateOrConnectWithoutActorInput = {
+    where: NotificationWhereUniqueInput
+    create: XOR<NotificationCreateWithoutActorInput, NotificationUncheckedCreateWithoutActorInput>
+  }
+
+  export type NotificationCreateManyActorInputEnvelope = {
+    data: NotificationCreateManyActorInput | NotificationCreateManyActorInput[]
   }
 
   export type ActivityCreateWithoutUserInput = {
@@ -16057,6 +16214,22 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Notification"> | Date | string
   }
 
+  export type NotificationUpsertWithWhereUniqueWithoutActorInput = {
+    where: NotificationWhereUniqueInput
+    update: XOR<NotificationUpdateWithoutActorInput, NotificationUncheckedUpdateWithoutActorInput>
+    create: XOR<NotificationCreateWithoutActorInput, NotificationUncheckedCreateWithoutActorInput>
+  }
+
+  export type NotificationUpdateWithWhereUniqueWithoutActorInput = {
+    where: NotificationWhereUniqueInput
+    data: XOR<NotificationUpdateWithoutActorInput, NotificationUncheckedUpdateWithoutActorInput>
+  }
+
+  export type NotificationUpdateManyWithWhereWithoutActorInput = {
+    where: NotificationScalarWhereInput
+    data: XOR<NotificationUpdateManyMutationInput, NotificationUncheckedUpdateManyWithoutActorInput>
+  }
+
   export type ActivityUpsertWithWhereUniqueWithoutUserInput = {
     where: ActivityWhereUniqueInput
     update: XOR<ActivityUpdateWithoutUserInput, ActivityUncheckedUpdateWithoutUserInput>
@@ -16101,6 +16274,7 @@ export namespace Prisma {
     comments?: CommentCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
     activities?: ActivityCreateNestedManyWithoutUserInput
   }
 
@@ -16119,6 +16293,7 @@ export namespace Prisma {
     comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
     activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -16288,6 +16463,7 @@ export namespace Prisma {
     comments?: CommentUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
     activities?: ActivityUpdateManyWithoutUserNestedInput
   }
 
@@ -16305,6 +16481,7 @@ export namespace Prisma {
     comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
     activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -16433,6 +16610,7 @@ export namespace Prisma {
     comments?: CommentCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
     activities?: ActivityCreateNestedManyWithoutUserInput
   }
 
@@ -16451,6 +16629,7 @@ export namespace Prisma {
     comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
     activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -16523,6 +16702,7 @@ export namespace Prisma {
     comments?: CommentUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
     activities?: ActivityUpdateManyWithoutUserNestedInput
   }
 
@@ -16540,6 +16720,7 @@ export namespace Prisma {
     comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
     activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -16765,6 +16946,7 @@ export namespace Prisma {
     comments?: CommentCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
     activities?: ActivityCreateNestedManyWithoutUserInput
   }
 
@@ -16783,6 +16965,7 @@ export namespace Prisma {
     comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
     activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -16806,6 +16989,7 @@ export namespace Prisma {
     comments?: CommentCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
     activities?: ActivityCreateNestedManyWithoutUserInput
   }
 
@@ -16824,6 +17008,7 @@ export namespace Prisma {
     comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
     activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -17124,6 +17309,7 @@ export namespace Prisma {
     comments?: CommentUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
     activities?: ActivityUpdateManyWithoutUserNestedInput
   }
 
@@ -17141,6 +17327,7 @@ export namespace Prisma {
     comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
     activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -17169,6 +17356,7 @@ export namespace Prisma {
     comments?: CommentUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
     activities?: ActivityUpdateManyWithoutUserNestedInput
   }
 
@@ -17186,6 +17374,7 @@ export namespace Prisma {
     comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
     activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -17386,6 +17575,7 @@ export namespace Prisma {
     createdTasks?: TaskCreateNestedManyWithoutCreatorInput
     timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
     activities?: ActivityCreateNestedManyWithoutUserInput
   }
 
@@ -17404,6 +17594,7 @@ export namespace Prisma {
     createdTasks?: TaskUncheckedCreateNestedManyWithoutCreatorInput
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
     activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -17498,6 +17689,7 @@ export namespace Prisma {
     createdTasks?: TaskUpdateManyWithoutCreatorNestedInput
     timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
     activities?: ActivityUpdateManyWithoutUserNestedInput
   }
 
@@ -17515,6 +17707,7 @@ export namespace Prisma {
     createdTasks?: TaskUncheckedUpdateManyWithoutCreatorNestedInput
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
     activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -17590,6 +17783,7 @@ export namespace Prisma {
     createdTasks?: TaskCreateNestedManyWithoutCreatorInput
     comments?: CommentCreateNestedManyWithoutAuthorInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
     activities?: ActivityCreateNestedManyWithoutUserInput
   }
 
@@ -17608,6 +17802,7 @@ export namespace Prisma {
     createdTasks?: TaskUncheckedCreateNestedManyWithoutCreatorInput
     comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
     activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -17702,6 +17897,7 @@ export namespace Prisma {
     createdTasks?: TaskUpdateManyWithoutCreatorNestedInput
     comments?: CommentUpdateManyWithoutAuthorNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
     activities?: ActivityUpdateManyWithoutUserNestedInput
   }
 
@@ -17719,6 +17915,7 @@ export namespace Prisma {
     createdTasks?: TaskUncheckedUpdateManyWithoutCreatorNestedInput
     comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
     activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -17737,6 +17934,7 @@ export namespace Prisma {
     createdTasks?: TaskCreateNestedManyWithoutCreatorInput
     comments?: CommentCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
     activities?: ActivityCreateNestedManyWithoutUserInput
   }
 
@@ -17755,12 +17953,56 @@ export namespace Prisma {
     createdTasks?: TaskUncheckedCreateNestedManyWithoutCreatorInput
     comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
     activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutNotificationsInput = {
     where: UserWhereUniqueInput
     create: XOR<UserCreateWithoutNotificationsInput, UserUncheckedCreateWithoutNotificationsInput>
+  }
+
+  export type UserCreateWithoutSentNotificationsInput = {
+    id?: string
+    name: string
+    email: string
+    password: string
+    avatar?: string | null
+    role?: $Enums.SystemRole
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    ownedProjects?: ProjectCreateNestedManyWithoutOwnerInput
+    projectMembers?: ProjectMemberCreateNestedManyWithoutUserInput
+    assignedTasks?: TaskCreateNestedManyWithoutAssigneeInput
+    createdTasks?: TaskCreateNestedManyWithoutCreatorInput
+    comments?: CommentCreateNestedManyWithoutAuthorInput
+    timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutUserInput
+    activities?: ActivityCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutSentNotificationsInput = {
+    id?: string
+    name: string
+    email: string
+    password: string
+    avatar?: string | null
+    role?: $Enums.SystemRole
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    ownedProjects?: ProjectUncheckedCreateNestedManyWithoutOwnerInput
+    projectMembers?: ProjectMemberUncheckedCreateNestedManyWithoutUserInput
+    assignedTasks?: TaskUncheckedCreateNestedManyWithoutAssigneeInput
+    createdTasks?: TaskUncheckedCreateNestedManyWithoutCreatorInput
+    comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
+    timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    activities?: ActivityUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutSentNotificationsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutSentNotificationsInput, UserUncheckedCreateWithoutSentNotificationsInput>
   }
 
   export type UserUpsertWithoutNotificationsInput = {
@@ -17788,6 +18030,7 @@ export namespace Prisma {
     createdTasks?: TaskUpdateManyWithoutCreatorNestedInput
     comments?: CommentUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
     activities?: ActivityUpdateManyWithoutUserNestedInput
   }
 
@@ -17805,6 +18048,54 @@ export namespace Prisma {
     createdTasks?: TaskUncheckedUpdateManyWithoutCreatorNestedInput
     comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
+    activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUpsertWithoutSentNotificationsInput = {
+    update: XOR<UserUpdateWithoutSentNotificationsInput, UserUncheckedUpdateWithoutSentNotificationsInput>
+    create: XOR<UserCreateWithoutSentNotificationsInput, UserUncheckedCreateWithoutSentNotificationsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutSentNotificationsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutSentNotificationsInput, UserUncheckedUpdateWithoutSentNotificationsInput>
+  }
+
+  export type UserUpdateWithoutSentNotificationsInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
+    role?: EnumSystemRoleFieldUpdateOperationsInput | $Enums.SystemRole
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    ownedProjects?: ProjectUpdateManyWithoutOwnerNestedInput
+    projectMembers?: ProjectMemberUpdateManyWithoutUserNestedInput
+    assignedTasks?: TaskUpdateManyWithoutAssigneeNestedInput
+    createdTasks?: TaskUpdateManyWithoutCreatorNestedInput
+    comments?: CommentUpdateManyWithoutAuthorNestedInput
+    timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutUserNestedInput
+    activities?: ActivityUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutSentNotificationsInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
+    role?: EnumSystemRoleFieldUpdateOperationsInput | $Enums.SystemRole
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    ownedProjects?: ProjectUncheckedUpdateManyWithoutOwnerNestedInput
+    projectMembers?: ProjectMemberUncheckedUpdateManyWithoutUserNestedInput
+    assignedTasks?: TaskUncheckedUpdateManyWithoutAssigneeNestedInput
+    createdTasks?: TaskUncheckedUpdateManyWithoutCreatorNestedInput
+    comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
+    timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
     activities?: ActivityUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -17916,6 +18207,7 @@ export namespace Prisma {
     comments?: CommentCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationCreateNestedManyWithoutActorInput
   }
 
   export type UserUncheckedCreateWithoutActivitiesInput = {
@@ -17934,6 +18226,7 @@ export namespace Prisma {
     comments?: CommentUncheckedCreateNestedManyWithoutAuthorInput
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    sentNotifications?: NotificationUncheckedCreateNestedManyWithoutActorInput
   }
 
   export type UserCreateOrConnectWithoutActivitiesInput = {
@@ -18067,6 +18360,7 @@ export namespace Prisma {
     comments?: CommentUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUpdateManyWithoutActorNestedInput
   }
 
   export type UserUncheckedUpdateWithoutActivitiesInput = {
@@ -18084,6 +18378,7 @@ export namespace Prisma {
     comments?: CommentUncheckedUpdateManyWithoutAuthorNestedInput
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    sentNotifications?: NotificationUncheckedUpdateManyWithoutActorNestedInput
   }
 
   export type ProjectCreateManyOwnerInput = {
@@ -18175,6 +18470,18 @@ export namespace Prisma {
     message: string
     isRead?: boolean
     actorId?: string | null
+    relatedTaskId?: string | null
+    relatedProjectId?: string | null
+    createdAt?: Date | string
+  }
+
+  export type NotificationCreateManyActorInput = {
+    id?: string
+    type: $Enums.NotificationType
+    title: string
+    message: string
+    isRead?: boolean
+    userId: string
     relatedTaskId?: string | null
     relatedProjectId?: string | null
     createdAt?: Date | string
@@ -18446,10 +18753,10 @@ export namespace Prisma {
     title?: StringFieldUpdateOperationsInput | string
     message?: StringFieldUpdateOperationsInput | string
     isRead?: BoolFieldUpdateOperationsInput | boolean
-    actorId?: NullableStringFieldUpdateOperationsInput | string | null
     relatedTaskId?: NullableStringFieldUpdateOperationsInput | string | null
     relatedProjectId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    actor?: UserUpdateOneWithoutSentNotificationsNestedInput
   }
 
   export type NotificationUncheckedUpdateWithoutUserInput = {
@@ -18469,6 +18776,39 @@ export namespace Prisma {
     message?: StringFieldUpdateOperationsInput | string
     isRead?: BoolFieldUpdateOperationsInput | boolean
     actorId?: NullableStringFieldUpdateOperationsInput | string | null
+    relatedTaskId?: NullableStringFieldUpdateOperationsInput | string | null
+    relatedProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type NotificationUpdateWithoutActorInput = {
+    type?: EnumNotificationTypeFieldUpdateOperationsInput | $Enums.NotificationType
+    title?: StringFieldUpdateOperationsInput | string
+    message?: StringFieldUpdateOperationsInput | string
+    isRead?: BoolFieldUpdateOperationsInput | boolean
+    relatedTaskId?: NullableStringFieldUpdateOperationsInput | string | null
+    relatedProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutNotificationsNestedInput
+  }
+
+  export type NotificationUncheckedUpdateWithoutActorInput = {
+    type?: EnumNotificationTypeFieldUpdateOperationsInput | $Enums.NotificationType
+    title?: StringFieldUpdateOperationsInput | string
+    message?: StringFieldUpdateOperationsInput | string
+    isRead?: BoolFieldUpdateOperationsInput | boolean
+    userId?: StringFieldUpdateOperationsInput | string
+    relatedTaskId?: NullableStringFieldUpdateOperationsInput | string | null
+    relatedProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type NotificationUncheckedUpdateManyWithoutActorInput = {
+    type?: EnumNotificationTypeFieldUpdateOperationsInput | $Enums.NotificationType
+    title?: StringFieldUpdateOperationsInput | string
+    message?: StringFieldUpdateOperationsInput | string
+    isRead?: BoolFieldUpdateOperationsInput | boolean
+    userId?: StringFieldUpdateOperationsInput | string
     relatedTaskId?: NullableStringFieldUpdateOperationsInput | string | null
     relatedProjectId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string

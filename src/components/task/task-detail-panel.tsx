@@ -51,10 +51,13 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
   const [mentionSearch, setMentionSearch] = useState("");
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(-1);
-  
+  const [activeEditorIsEdit, setActiveEditorIsEdit] = useState(false);
+
   const assigneeRef = useRef<HTMLDivElement>(null);
-  const commentInputRef = useRef<HTMLInputElement>(null);
+  const commentEditorRef = useRef<HTMLDivElement>(null);
+  const editEditorRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
 
   const filteredMembers = members.filter(m => 
     m.user.name.toLowerCase().includes(mentionSearch.toLowerCase()) ||
@@ -186,57 +189,180 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
     }, 0);
   };
 
-  const handleCommentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setComment(value);
-    
-    // Detect trigger '@' at cursor
-    const cursorPosition = e.target.selectionStart || 0;
-    const textBeforeCursor = value.slice(0, cursorPosition);
-    const lastAtPos = textBeforeCursor.lastIndexOf("@");
-    
-    // Check if we should show the mention list
-    if (lastAtPos !== -1 && (lastAtPos === 0 || textBeforeCursor[lastAtPos - 1] === " ")) {
-      const query = textBeforeCursor.slice(lastAtPos + 1);
-      if (!query.includes("]") && !query.includes("[")) { // Ensure we're not inside an existing mention
-        setMentionSearch(query);
-        setShowMentionList(true);
-        setMentionIndex(0);
-        return;
+  // --- CONTENTEDITABLE MENTION SYSTEM ---
+
+  const serializeEditor = (editor: HTMLDivElement): string => {
+    let result = '';
+    editor.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        result += node.textContent || '';
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        const mentionId = el.dataset.mentionId;
+        const mentionName = el.dataset.mentionName;
+        if (mentionId && mentionName) {
+          result += `@[${mentionId}:${mentionName}]`;
+        } else if (el.tagName === 'BR') {
+          result += '\n';
+        } else {
+          result += el.innerText || '';
+        }
+      }
+    });
+    return result.trim();
+  };
+
+  const createMentionBadge = (id: string, name: string): HTMLSpanElement => {
+    const member = members.find(m => m.user.id === id);
+    const avatar = member?.user.avatar || (member?.user as any)?.image || null;
+    const isSelf = id === session?.user?.id;
+    const bg = isSelf ? 'rgba(255, 86, 48, 0.15)' : 'rgba(0, 102, 255, 0.12)';
+    const color = isSelf ? 'rgb(255, 86, 48)' : 'rgb(0, 102, 255)';
+    const avatarBg = isSelf ? 'rgb(255, 86, 48)' : 'rgb(0, 102, 255)';
+
+    const span = document.createElement('span');
+    span.contentEditable = 'false';
+    span.dataset.mentionId = id;
+    span.dataset.mentionName = name;
+    span.style.cssText = `display:inline-flex;align-items:center;gap:4px;background:${bg};color:${color};padding:2px 8px 2px 4px;border-radius:4px;font-size:13px;font-weight:500;white-space:nowrap;cursor:default;user-select:none;margin:0 2px;vertical-align:middle;line-height:1.4;`;
+
+    const avatarEl = document.createElement('span');
+    avatarEl.style.cssText = `width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700;overflow:hidden;flex-shrink:0;background:${avatarBg};`;
+    if (avatar) {
+      const img = document.createElement('img');
+      img.src = avatar;
+      img.alt = name;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      avatarEl.appendChild(img);
+    } else {
+      avatarEl.textContent = getInitials(name).charAt(0);
+    }
+    span.appendChild(avatarEl);
+
+    const nameEl = document.createElement('span');
+    nameEl.textContent = name;
+    span.appendChild(nameEl);
+
+    return span;
+  };
+
+  const populateEditor = (editor: HTMLDivElement, content: string) => {
+    editor.innerHTML = '';
+    const regex = /@\[([^:]+):([^\]]+)\]/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        editor.appendChild(document.createTextNode(content.slice(lastIndex, match.index)));
+      }
+      const badge = createMentionBadge(match[1], match[2]);
+      editor.appendChild(badge);
+      // Add a trailing non-breaking space after badge
+      editor.appendChild(document.createTextNode('\u00a0'));
+      lastIndex = match.index + match[0].length;
+      // Skip a trailing space that was part of the original text
+      if (content[lastIndex] === ' ') lastIndex++;
+    }
+    if (lastIndex < content.length) {
+      editor.appendChild(document.createTextNode(content.slice(lastIndex)));
+    }
+  };
+
+  const handleEditorInput = (editor: HTMLDivElement, isEdit: boolean) => {
+    const text = editor.innerText;
+    if (!isEdit) setComment(text);
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) { setShowMentionList(false); return; }
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) { setShowMentionList(false); return; }
+
+    const textBefore = (node.textContent || '').slice(0, range.startOffset);
+    const lastAt = textBefore.lastIndexOf('@');
+    if (lastAt !== -1) {
+      const charBefore = textBefore[lastAt - 1];
+      if (lastAt === 0 || charBefore === ' ' || charBefore === '\u00a0') {
+        const query = textBefore.slice(lastAt + 1);
+        if (!query.includes(' ') && !query.includes('\u00a0')) {
+          setMentionSearch(query);
+          setShowMentionList(true);
+          setMentionIndex(0);
+          setActiveEditorIsEdit(isEdit);
+          return;
+        }
       }
     }
     setShowMentionList(false);
   };
 
-  const insertMention = (memberName: string) => {
-    const cursorPosition = commentInputRef.current?.selectionStart || 0;
-    const textBeforeCursor = comment.slice(0, cursorPosition);
-    const lastAtPos = textBeforeCursor.lastIndexOf("@");
-    
-    // Use structured format for multi-word names
-    const newValue = comment.slice(0, lastAtPos) + "@[" + memberName + "] " + comment.slice(cursorPosition);
-    setComment(newValue);
+  const insertMentionBadge = (memberId: string, memberName: string) => {
+    const editor = activeEditorIsEdit ? editEditorRef.current : commentEditorRef.current;
+    if (!editor) return;
+
+    editor.focus();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return;
+
+    const text = node.textContent || '';
+    const offset = range.startOffset;
+    const lastAt = text.lastIndexOf('@', offset - 1);
+    if (lastAt === -1) return;
+
+    // Remove @query text
+    (node as Text).deleteData(lastAt, offset - lastAt);
+
+    // Create the badge and insert it
+    const badge = createMentionBadge(memberId, memberName);
+    const parentNode = node.parentNode!;
+    const nextSibling = node.nextSibling;
+
+    // Split text node at insertion point
+    const beforeText = (node.textContent || '').slice(0, lastAt);
+    const afterText = (node.textContent || '').slice(lastAt);
+    (node as Text).data = beforeText;
+
+    // Insert badge after the text node
+    const afterNode = document.createTextNode('\u00a0' + afterText);
+    if (nextSibling) {
+      parentNode.insertBefore(badge, nextSibling);
+      parentNode.insertBefore(afterNode, badge.nextSibling);
+    } else {
+      parentNode.appendChild(badge);
+      parentNode.appendChild(afterNode);
+    }
+
+    // Move cursor to right after the non-breaking space
+    const newRange = document.createRange();
+    newRange.setStart(afterNode, 1); // after the \u00a0
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    setComment(editor.innerText);
     setShowMentionList(false);
-    
-    setTimeout(() => {
-      if (commentInputRef.current) {
-        const newPos = lastAtPos + memberName.length + 3; // +3 for @, [, ]
-        commentInputRef.current.focus();
-        commentInputRef.current.setSelectionRange(newPos, newPos);
-      }
-    }, 10);
   };
+
+
 
   const addComment = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!comment.trim()) return;
-    
-    const newComment = comment;
-    setComment("");
+    const editor = commentEditorRef.current;
+    if (!editor) return;
+    const finalComment = serializeEditor(editor);
+    if (!finalComment.trim()) return;
+
+    // Clear editor
+    editor.innerHTML = '';
+    setComment('');
     
     const tempComment = {
       id: "temp-" + Date.now(),
-      content: newComment,
+      content: finalComment,
       createdAt: new Date().toISOString(),
       author: { 
         id: session?.user?.id || "temp",
@@ -248,7 +374,7 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
     setTask(prev => prev ? { ...prev, comments: [tempComment, ...(prev.comments || [])] } : null);
 
     try {
-      await fetch(`/api/tasks/${taskId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: newComment }) });
+      await fetch(`/api/tasks/${taskId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: finalComment }) });
       fetchTask();
     } catch {
       toast("Failed to post comment", "error");
@@ -268,14 +394,30 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
   const startEditComment = (c: Comment) => {
     setEditingCommentId(c.id);
     setEditingCommentContent(c.content);
+    // Populate editor after it renders
+    setTimeout(() => {
+      if (editEditorRef.current) {
+        populateEditor(editEditorRef.current, c.content);
+        // Move cursor to end
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(editEditorRef.current);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+    }, 50);
   };
 
   const saveEditComment = async (commentId: string) => {
+    const editor = editEditorRef.current;
+    if (!editor) return;
+    const finalContent = serializeEditor(editor);
     try {
       await fetch(`/api/tasks/${taskId}/comments/${commentId}`, { 
         method: "PATCH", 
         headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ content: editingCommentContent }) 
+        body: JSON.stringify({ content: finalContent }) 
       });
       setEditingCommentId(null);
       toast("Comment updated", "success");
@@ -297,16 +439,26 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
   const parseMentions = (content: string) => {
     if (!content) return "";
     
-    const parts = content.split(/(@\[[\w\s]+?\])/g);
+    // Stricter regex for @[id:name] or legacy @[name]
+    const parts = content.split(/(@\[[a-f0-9]*:?[^\]]+?\])/g);
     
     return parts.map((part, i) => {
-      let name = "";
+      let userId = "";
+      let userName = "";
+
       if (part.startsWith("@[")) {
-        name = part.slice(2, -1);
+        const inner = part.slice(2, -1);
+        if (inner.includes(":")) {
+          [userId, userName] = inner.split(":");
+        } else {
+          userName = inner; // Legacy support
+        }
       }
 
-      if (name) {
-        const member = members.find(m => m.user.name.toLowerCase().trim() === name.toLowerCase().trim());
+      if (userId || userName) {
+        const member = userId 
+          ? members.find(m => m.user.id === userId)
+          : members.find(m => m.user.name.toLowerCase().trim() === userName.toLowerCase().trim());
         if (member) {
           const isSelf = member.user.id === session?.user?.id;
           const memberAvatar = member.user.avatar || (member.user as any).image;
@@ -318,8 +470,12 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
 
           return (
             <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: bg, color: color, padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontWeight: 500, verticalAlign: "middle", margin: "0px 2px" }}>
-              <div style={{ width: "15px", height: "15px", borderRadius: "50%", background: memberAvatar ? `url(${memberAvatar}) center/cover` : avatarBg, fontSize: "8px", color: "rgb(255, 255, 255)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 500 }}>
-                {!memberAvatar && getInitials(member.user.name).charAt(0)}
+              <div style={{ width: "15px", height: "15px", borderRadius: "50%", background: avatarBg, fontSize: "8px", color: "rgb(255, 255, 255)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 500, overflow: "hidden" }}>
+                {memberAvatar ? (
+                  <img src={memberAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  getInitials(member.user.name).charAt(0)
+                )}
               </div>
               {member.user.name}
             </span>
@@ -496,12 +652,41 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
                       )}
                     </div>
                     {editingCommentId === c.id ? (
-                      <div style={{ marginTop: "4px" }}>
-                        <input value={editingCommentContent} onChange={(e) => setEditingCommentContent(e.target.value)} 
-                          style={{ width: "100%", background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", padding: "4px 8px", fontSize: "13px", outline: "none" }} />
-                        <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-                          <button onClick={() => saveEditComment(c.id)} style={{ fontSize: "11px", color: "var(--accent)", background: "none", border: "none", cursor: "pointer" }}>Save</button>
-                          <button onClick={() => setEditingCommentId(null)} style={{ fontSize: "11px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer" }}>Cancel</button>
+                      <div style={{ marginTop: "6px" }}>
+                        {/* Contenteditable edit input */}
+                        <div
+                          ref={editEditorRef}
+                          contentEditable
+                          suppressContentEditableWarning
+                          onInput={(e) => handleEditorInput(e.currentTarget, true)}
+                          onKeyDown={(e) => {
+                            if (showMentionList) {
+                              if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex(prev => Math.min(prev + 1, filteredMembers.length - 1)); }
+                              else if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex(prev => Math.max(prev - 1, 0)); }
+                              else if (e.key === "Enter" && filteredMembers[mentionIndex]) { e.preventDefault(); insertMentionBadge(filteredMembers[mentionIndex].user.id, filteredMembers[mentionIndex].user.name); }
+                              else if (e.key === "Escape") setShowMentionList(false);
+                            }
+                            if (e.key === "Escape" && !showMentionList) setEditingCommentId(null);
+                          }}
+                          style={{
+                            minHeight: "34px",
+                            maxHeight: "120px",
+                            overflowY: "auto",
+                            background: "var(--bg-primary)",
+                            border: "1px solid var(--accent)",
+                            borderRadius: "6px",
+                            padding: "6px 10px",
+                            fontSize: "13px",
+                            lineHeight: "1.5",
+                            color: "var(--text-primary)",
+                            outline: "none",
+                            wordBreak: "break-word",
+                          }}
+                        />
+                        <div style={{ display: "flex", gap: "8px", marginTop: "6px", alignItems: "center" }}>
+                          <button onClick={() => saveEditComment(c.id)} style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--accent)", border: "none", borderRadius: "4px", padding: "4px 12px", cursor: "pointer" }}>Save</button>
+                          <button onClick={() => setEditingCommentId(null)} style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer" }}>Cancel</button>
+                          <span style={{ fontSize: "11px", color: "var(--text-tertiary)", marginLeft: "auto" }}>Type @ to mention</span>
                         </div>
                       </div>
                     ) : (
@@ -529,101 +714,95 @@ export function TaskDetailPanel({ taskId, onClose, onUpdate }: TaskDetailPanelPr
 
           {activeTab === "comments" && (
             <div style={{ display: "flex", gap: "12px", position: "relative" }}>
-              <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: session?.user?.image || (session?.user as any)?.avatar ? `url(${session?.user?.image || (session?.user as any)?.avatar}) center/cover` : "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", color: "#fff" }}>
-                {!(session?.user?.image || (session?.user as any)?.avatar) && getInitials(session?.user?.name || "JR")}
+              {/* Author avatar */}
+              <div style={{ width: "28px", height: "28px", borderRadius: "50%", overflow: "hidden", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", color: "#fff", flexShrink: 0 }}>
+                {(session?.user?.image || (session?.user as any)?.avatar)
+                  ? <img src={session?.user?.image || (session?.user as any)?.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : getInitials(session?.user?.name || "?")}
               </div>
               <div style={{ flex: 1, position: "relative" }}>
-                <form onSubmit={addComment} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <div style={{ flex: 1, position: "relative" }}>
-                    <div style={{ position: "absolute", left: "18px", top: "50%", transform: "translateY(-50%)", display: "flex", gap: "5px", pointerEvents: "none", zIndex: 1 }}>
-                      {comment.split(/(@\[[\w\s]+?\])/g).map((part, i) => {
-                        if (part.startsWith("@[") && part.endsWith("]")) {
-                          const name = part.slice(2, -1);
-                          const member = members.find(m => m.user.name.toLowerCase().trim() === name.toLowerCase().trim());
-                          if (member) {
-                            const isSelf = member.user.id === session?.user?.id;
-                            const bg = isSelf ? "rgba(255, 86, 48, 0.15)" : "rgba(0, 102, 255, 0.12)";
-                            const color = isSelf ? "rgb(255, 86, 48)" : "rgb(0, 102, 255)";
-                            const avatarBg = isSelf ? "rgb(255, 86, 48)" : "rgb(0, 102, 255)";
-                            return (
-                              <span key={i} style={{ background: bg, color: color, padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontWeight: 500, display: "flex", alignItems: "center", gap: "5px", pointerEvents: "auto" }}>
-                                <div style={{ width: "15px", height: "15px", borderRadius: "50%", background: (member.user.avatar || (member.user as any).image) ? `url(${member.user.avatar || (member.user as any).image}) center/cover` : avatarBg, fontSize: "8px", color: "rgb(255, 255, 255)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 500 }}>
-                                  {!(member.user.avatar || (member.user as any).image) && getInitials(member.user.name).charAt(0)}
-                                </div>
-                                {member.user.name}
-                              </span>
-                            );
-                          }
-                        }
-                        // Render normal text as spans to preserve spacing for the overlay
-                        return <span key={i} style={{ opacity: 0, whiteSpace: "pre" }}>{part}</span>;
-                      })}
-                    </div>
-                    <input 
-                      ref={commentInputRef} 
-                      value={comment} 
-                      onChange={handleCommentChange} 
-                      onKeyDown={(e) => {
-                        if (showMentionList) {
-                          if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex(prev => Math.min(prev + 1, filteredMembers.length - 1)); }
-                          else if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex(prev => Math.max(prev - 1, 0)); }
-                          else if (e.key === "Enter" && filteredMembers[mentionIndex]) { e.preventDefault(); insertMention(filteredMembers[mentionIndex].user.name); }
-                          else if (e.key === "Escape") { setShowMentionList(false); }
-                        }
-                        // Atomic delete logic for structured mentions @[Name]
-                        if (e.key === "Backspace") {
-                          const cursorPosition = commentInputRef.current?.selectionStart || 0;
-                          const textBefore = comment.slice(0, cursorPosition);
-                          if (textBefore.endsWith("] ")) {
-                            const lastOpenBracket = textBefore.lastIndexOf("@[");
-                            if (lastOpenBracket !== -1) {
-                              e.preventDefault();
-                              setComment(comment.slice(0, lastOpenBracket) + comment.slice(cursorPosition));
-                              return;
-                            }
-                          }
-                        }
-                      }}
-                      placeholder={comment.includes("@") ? "" : "Write a comment..."}
-                      style={{ 
-                        width: "100%", 
-                        height: "44px", 
-                        border: "1px solid var(--border)", 
-                        borderRadius: "22px", 
-                        padding: "0 18px", 
-                        fontSize: "14px", 
-                        outline: "none", 
-                        background: "var(--bg-primary)", 
-                        color: comment.includes("@") ? "transparent" : "var(--text-primary)",
-                        caretColor: "var(--text-primary)",
-                        transition: "border-color 0.2s"
-                      }} 
-                    />
-                  </div>
-                  <TooltipSimple label="Send comment">
-                    <button type="submit" disabled={!comment.trim()} style={{ width: "40px", height: "40px", borderRadius: "50%", background: comment.trim() ? "var(--accent)" : "var(--bg-tertiary)", color: "#fff", border: "none", cursor: comment.trim() ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "var(--transition-fast)", flexShrink: 0, boxShadow: comment.trim() ? "0 4px 12px rgba(255,86,48,0.3)" : "none" }}>
-                      <Send size={18} />
-                    </button>
-                  </TooltipSimple>
-                </form>
-                
+                {/* Contenteditable comment input */}
+                <div style={{ position: "relative", border: "1px solid var(--border)", borderRadius: "22px", background: "var(--bg-primary)", transition: "border-color 0.2s", overflow: "hidden" }}
+                  onFocusCapture={(e) => { if (e.currentTarget.style) e.currentTarget.style.borderColor = "var(--accent)"; }}
+                  onBlurCapture={(e) => { if (e.currentTarget.style) e.currentTarget.style.borderColor = "var(--border)"; }}
+                >
+                  <div
+                    ref={commentEditorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    data-placeholder="Write a comment... (@ to mention)"
+                    onInput={(e) => handleEditorInput(e.currentTarget, false)}
+                    onKeyDown={(e) => {
+                      if (showMentionList) {
+                        if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex(prev => Math.min(prev + 1, filteredMembers.length - 1)); return; }
+                        if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex(prev => Math.max(prev - 1, 0)); return; }
+                        if (e.key === "Enter" && filteredMembers[mentionIndex]) { e.preventDefault(); insertMentionBadge(filteredMembers[mentionIndex].user.id, filteredMembers[mentionIndex].user.name); return; }
+                        if (e.key === "Escape") { setShowMentionList(false); return; }
+                      }
+                      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addComment(); }
+                    }}
+                    style={{
+                      minHeight: "44px",
+                      maxHeight: "120px",
+                      overflowY: "auto",
+                      padding: "10px 50px 10px 18px",
+                      fontSize: "14px",
+                      lineHeight: "1.5",
+                      color: "var(--text-primary)",
+                      outline: "none",
+                      wordBreak: "break-word",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  />
+                  <style>{`
+                    [data-placeholder]:empty:before {
+                      content: attr(data-placeholder);
+                      color: var(--text-tertiary);
+                      pointer-events: none;
+                    }
+                  `}</style>
+                  {/* Send button */}
+                  <button
+                    onClick={addComment}
+                    disabled={!comment.trim()}
+                    style={{
+                      position: "absolute", right: "6px", top: "50%", transform: "translateY(-50%)",
+                      width: "32px", height: "32px", borderRadius: "50%",
+                      background: comment.trim() ? "var(--accent)" : "var(--bg-tertiary)",
+                      color: "#fff", border: "none",
+                      cursor: comment.trim() ? "pointer" : "default",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "var(--transition-fast)",
+                      boxShadow: comment.trim() ? "0 2px 8px rgba(255,86,48,0.4)" : "none",
+                    }}
+                  >
+                    <Send size={15} />
+                  </button>
+                </div>
+
+                {/* Mention dropdown */}
                 {showMentionList && filteredMembers.length > 0 && (
-                  <div style={{ position: "absolute", bottom: "calc(100% + 12px)", left: 0, width: "260px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", overflow: "hidden", zIndex: 1000, animation: "slideUp 0.2s ease-out" }}>
-                    <div style={{ padding: "10px 16px", fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)", borderBottom: "1px solid var(--border)", background: "rgba(255,255,255,0.02)", letterSpacing: "0.5px" }}>SUGGESTED PEOPLE</div>
-                    <div style={{ maxHeight: "240px", overflowY: "auto" }}>
-                      {filteredMembers.map((m, i) => (
-                        <button key={m.id} onClick={() => insertMention(m.user.name)} onMouseEnter={() => setMentionIndex(i)}
-                          style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", border: "none", background: i === mentionIndex ? "var(--bg-tertiary)" : "transparent", cursor: "pointer", fontSize: "14px", textAlign: "left", color: "var(--text-primary)", transition: "background 0.1s" }}>
-                          <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: (m.user.avatar || (m.user as any).image) ? `url(${m.user.avatar || (m.user as any).image}) center/cover` : "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: "#fff", fontWeight: 600 }}>
-                            {!(m.user.avatar || (m.user as any).image) && getInitials(m.user.name)}
+                  <div ref={mentionDropdownRef} style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: "280px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "8px", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden", zIndex: 1000 }}>
+                    <div style={{ padding: "8px 14px", fontSize: "10px", fontWeight: 700, color: "var(--text-tertiary)", borderBottom: "1px solid var(--border)", letterSpacing: "0.8px", textTransform: "uppercase" }}>Mention someone</div>
+                    {filteredMembers.map((m, i) => {
+                      const av = m.user.avatar || (m.user as any).image;
+                      return (
+                        <button key={m.user.id}
+                          onMouseDown={(e) => { e.preventDefault(); insertMentionBadge(m.user.id, m.user.name); }}
+                          onMouseEnter={() => setMentionIndex(i)}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", border: "none", background: i === mentionIndex ? "var(--bg-tertiary)" : "transparent", cursor: "pointer", textAlign: "left", color: "var(--text-primary)", transition: "background 0.1s" }}
+                        >
+                          <div style={{ width: "32px", height: "32px", borderRadius: "50%", overflow: "hidden", background: av ? undefined : "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", color: "#fff", fontWeight: 600, flexShrink: 0 }}>
+                            {av ? <img src={av} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : getInitials(m.user.name)}
                           </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                            <span style={{ fontWeight: 600 }}>{m.user.name}</span>
-                            <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>{m.user.email}</span>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: "13px" }}>{m.user.name}</div>
+                            <div style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>{m.user.email}</div>
                           </div>
                         </button>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

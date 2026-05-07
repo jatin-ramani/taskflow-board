@@ -235,9 +235,12 @@ exports.SystemRole = exports.$Enums.SystemRole = {
 };
 
 exports.ProjectStatus = exports.$Enums.ProjectStatus = {
-  ACTIVE: 'ACTIVE',
-  ARCHIVED: 'ARCHIVED',
-  COMPLETED: 'COMPLETED'
+  ON_TRACK: 'ON_TRACK',
+  AT_RISK: 'AT_RISK',
+  OFF_TRACK: 'OFF_TRACK',
+  ON_HOLD: 'ON_HOLD',
+  COMPLETE: 'COMPLETE',
+  DROPPED: 'DROPPED'
 };
 
 exports.ProjectRole = exports.$Enums.ProjectRole = {

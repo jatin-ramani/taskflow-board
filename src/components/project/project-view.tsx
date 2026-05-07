@@ -6,6 +6,8 @@ import { KanbanBoard } from "../board/kanban-board";
 import { ProjectListView } from "./project-list-view";
 import { ProjectCalendarView } from "./project-calendar-view";
 import { ProjectDashboardView } from "./project-dashboard-view";
+import { ProjectTeamView } from "./project-team-view";
+import { ProjectSettingsView } from "./project-settings-view";
 import { TaskDetailPanel } from "../task/task-detail-panel";
 
 interface ProjectViewProps {
@@ -33,6 +35,10 @@ export function ProjectView({ projectId }: ProjectViewProps) {
         return <ProjectListView projectId={projectId} onTaskClick={setSelectedTaskId} filterStatus="DONE" refreshKey={refreshKey} />;
       case "favorites":
         return <ProjectListView projectId={projectId} onTaskClick={setSelectedTaskId} filterFavorite={true} refreshKey={refreshKey} />;
+      case "team":
+        return <ProjectTeamView projectId={projectId} />;
+      case "settings":
+        return <ProjectSettingsView projectId={projectId} />;
       default:
         return (
           <div style={{ 

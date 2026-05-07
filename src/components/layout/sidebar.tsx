@@ -154,7 +154,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <nav>
           <Link href="/dashboard" style={navLinkStyle(isActive("/dashboard"))}><Home size={18} />{!collapsed && <span>Home</span>}</Link>
           <Link href="/my-tasks" style={navLinkStyle(isActive("/my-tasks"))}><CheckSquare size={18} />{!collapsed && <span>My tasks</span>}</Link>
-          <Link href="/notifications" style={navLinkStyle(isActive("/notifications"))}><Bell size={18} />{!collapsed && <span>Inbox</span>}</Link>
         </nav>
 
         {!collapsed && (

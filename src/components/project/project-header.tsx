@@ -27,6 +27,8 @@ export function ProjectHeader({ activeTab, onTabChange, projectId }: ProjectHead
     { id: "completed", label: "Completed", icon: Check },
     { id: "favorites", label: "Favorites", icon: ThumbsUp },
     { id: "files", label: "Files", icon: FileText },
+    { id: "team", label: "Team", icon: User },
+    { id: "settings", label: "Settings", icon: Settings2 },
   ];
 
   const sortOptions = [
@@ -203,19 +205,6 @@ export function ProjectHeader({ activeTab, onTabChange, projectId }: ProjectHead
             )}
           </div>
 
-          <button style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px", borderRadius: "6px", background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-secondary)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-            <Layers size={14} /> Group
-          </button>
-
-          <div style={{ width: "1px", height: "16px", background: "var(--border)", margin: "0 4px" }} />
-          
-          <button style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px", borderRadius: "6px", background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-secondary)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-            <Settings2 size={14} /> Options
-          </button>
         </div>
       </div>
     </div>

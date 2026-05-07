@@ -6,6 +6,7 @@ import { Menu, Bell, LogOut, User, ChevronRight, HelpCircle, Sparkles, Calendar,
 import { getInitials } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { ImageCropModal } from "../ui/image-crop-modal";
+import { NotificationDropdown } from "./notification-dropdown";
 import Link from "next/link";
 
 export function TopNav({ onToggleSidebar }: { onToggleSidebar: () => void }) {
@@ -17,7 +18,16 @@ export function TopNav({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const [cropImage, setCropImage] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [projectName, setProjectName] = useState<string | null>(null);
+  const [project, setProject] = useState<any>(null);
+
+  const STATUS_MAP: Record<string, { label: string, color: string, bg: string }> = {
+    ON_TRACK: { label: "On track", color: "#36b37e", bg: "rgba(54, 179, 126, 0.1)" },
+    AT_RISK: { label: "At risk", color: "#ffab00", bg: "rgba(255, 171, 0, 0.1)" },
+    OFF_TRACK: { label: "Off track", color: "#ff5630", bg: "rgba(255, 86, 48, 0.1)" },
+    ON_HOLD: { label: "On hold", color: "#0065ff", bg: "rgba(0, 101, 255, 0.1)" },
+    COMPLETE: { label: "Complete", color: "#36b37e", bg: "rgba(54, 179, 126, 0.2)" },
+    DROPPED: { label: "Dropped", color: "#6b778c", bg: "rgba(107, 119, 140, 0.1)" },
+  };
 
   useEffect(() => {
     const parts = pathname.split("/").filter(Boolean);
@@ -26,11 +36,11 @@ export function TopNav({ onToggleSidebar }: { onToggleSidebar: () => void }) {
       fetch(`/api/projects/${projectId}`)
         .then(res => res.json())
         .then(data => {
-          if (data && data.name) setProjectName(data.name);
+          if (data && data.name) setProject(data);
         })
-        .catch(err => console.error("Failed to fetch project name", err));
+        .catch(err => console.error("Failed to fetch project", err));
     } else {
-      setProjectName(null);
+      setProject(null);
     }
   }, [pathname]);
 
@@ -85,8 +95,8 @@ export function TopNav({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const getBreadcrumbs = () => {
     const parts = pathname.split("/").filter(Boolean);
     return parts.map((p, i) => {
-      if (parts[0] === "projects" && i === 1 && projectName) {
-        return projectName;
+      if (parts[0] === "projects" && i === 1 && project) {
+        return project.name;
       }
       return p.charAt(0).toUpperCase() + p.slice(1).replace(/-/g, " ");
     });
@@ -102,22 +112,42 @@ export function TopNav({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           <Menu size={20} />
         </button>
         <nav style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          {breadcrumbs.map((crumb, i) => (
-            <span key={i} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              {i > 0 && <ChevronRight size={14} color="var(--text-tertiary)" />}
-              <span style={{ fontSize: "14px", fontWeight: i === breadcrumbs.length - 1 ? 600 : 400, color: i === breadcrumbs.length - 1 ? "var(--text-primary)" : "var(--text-tertiary)" }}>
-                {crumb}
+          {breadcrumbs.map((crumb, i) => {
+            const isLast = i === breadcrumbs.length - 1;
+            const statusInfo = isLast && project?.status ? STATUS_MAP[project.status] : null;
+
+            return (
+              <span key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                {i > 0 && <ChevronRight size={14} color="var(--text-tertiary)" />}
+                <span style={{ fontSize: "14px", fontWeight: isLast ? 600 : 400, color: isLast ? "var(--text-primary)" : "var(--text-tertiary)" }}>
+                  {crumb}
+                </span>
+                {statusInfo && (
+                  <div style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "6px", 
+                    padding: "2px 8px", 
+                    borderRadius: "4px", 
+                    background: statusInfo.bg, 
+                    border: `1px solid ${statusInfo.color}33`,
+                    marginLeft: "8px"
+                  }}>
+                    <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: statusInfo.color }} />
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: statusInfo.color, textTransform: "uppercase", letterSpacing: "0.2px" }}>
+                      {statusInfo.label}
+                    </span>
+                  </div>
+                )}
               </span>
-            </span>
-          ))}
+            );
+          })}
         </nav>
       </div>
 
       {/* Right Actions */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <button style={{ width: "36px", height: "36px", borderRadius: "50%", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-tertiary)", transition: "var(--transition-fast)" }}>
-          <Bell size={18} />
-        </button>
+        <NotificationDropdown />
 
         {/* User Menu */}
         <div ref={menuRef} style={{ position: "relative" }}>

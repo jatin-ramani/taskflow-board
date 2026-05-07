@@ -38,7 +38,8 @@ model User {
   createdTasks     Task[]          @relation("TaskCreator")
   comments         Comment[]
   timeEntries      TimeEntry[]
-  notifications    Notification[]
+  notifications    Notification[] @relation("NotificationRecipient")
+  sentNotifications Notification[] @relation("NotificationActor")
   activities       Activity[]
 }
 
@@ -46,9 +47,12 @@ model User {
 // PROJECT
 // ============================================
 enum ProjectStatus {
-  ACTIVE
-  ARCHIVED
-  COMPLETED
+  ON_TRACK
+  AT_RISK
+  OFF_TRACK
+  ON_HOLD
+  COMPLETE
+  DROPPED
 }
 
 model Project {
@@ -57,7 +61,7 @@ model Project {
   description String?
   color       String        @default("#6d5bf7")
   icon        String        @default("folder")
-  status      ProjectStatus @default(ACTIVE)
+  status      ProjectStatus @default(ON_TRACK)
   ownerId     String        @db.ObjectId
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -230,7 +234,8 @@ model Notification {
   createdAt        DateTime         @default(now())
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id])
 }
 
 // ============================================
