@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TaskFlow — Smart Project Management",
+  title: "TaskFlow",
   description:
-    "Track your tasks, manage projects, and boost team productivity with an Asana-style project management tool.",
-  keywords: ["task management", "project management", "kanban", "time tracking", "team collaboration"],
+    "A personal task & goal manager with friends, shared projects, and chat.",
 };
 
 export default function RootLayout({

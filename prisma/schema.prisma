@@ -1,10 +1,9 @@
 // TaskFlow — Prisma Schema for MongoDB
-// Run `npx prisma generate` after changes
-// Run `npx prisma db push` to sync with MongoDB
+// Personal task/goal manager with social collaboration (friends, sharing, chat).
+// Run `npx prisma db push` to sync, then `npx prisma generate`.
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/client"
 }
 
 datasource db {
@@ -12,76 +11,108 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
+// ============================================================
 // USER
-// ============================================
+// ============================================================
 enum SystemRole {
   ADMIN
-  MANAGER
   MEMBER
 }
 
 model User {
-  id        String     @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  email     String     @unique
-  password  String
-  avatar    String?
-  role      SystemRole @default(MEMBER)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  publicId   String     @unique // 6-char friend code, e.g. "K7M2QX"
+  username   String?    @unique // optional @handle
+  name       String
+  email      String     @unique
+  password   String
+  avatar     String?
+  bio        String?
+  role       SystemRole @default(MEMBER)
+  lastSeenAt DateTime   @default(now()) // presence
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
-  // Relations
-  ownedProjects    Project[]       @relation("ProjectOwner")
-  projectMembers   ProjectMember[]
-  assignedTasks    Task[]          @relation("TaskAssignee")
-  createdTasks     Task[]          @relation("TaskCreator")
-  comments         Comment[]
-  timeEntries      TimeEntry[]
-  notifications    Notification[] @relation("NotificationRecipient")
-  sentNotifications Notification[] @relation("NotificationActor")
-  activities       Activity[]
+  // Social
+  sentRequests     Friendship[] @relation("Requester")
+  receivedRequests Friendship[] @relation("Addressee")
+
+  // Work
+  ownedProjects Project[]       @relation("ProjectOwner")
+  memberships   ProjectMember[]
+  createdTasks  Task[]          @relation("TaskCreator")
+  assignedTasks Task[]          @relation("TaskAssignee")
+  goals         Goal[]
+  comments      Comment[]
+
+  // Chat
+  conversations ConversationParticipant[]
+  messages      Message[]
+
+  // Signals
+  notifications  Notification[] @relation("NotifRecipient")
+  actedNotifs    Notification[] @relation("NotifActor")
+  activities     Activity[]
+
+  @@index([name])
 }
 
-// ============================================
-// PROJECT
-// ============================================
-enum ProjectStatus {
-  ON_TRACK
-  AT_RISK
-  OFF_TRACK
-  ON_HOLD
-  COMPLETE
-  DROPPED
+// ============================================================
+// FRIENDSHIP
+// ============================================================
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
 }
 
-model Project {
-  id          String        @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  description String?
-  color       String        @default("#6d5bf7")
-  icon        String        @default("folder")
-  status      ProjectStatus @default(ON_TRACK)
-  ownerId     String        @db.ObjectId
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+model Friendship {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  requesterId String           @db.ObjectId
+  addresseeId String           @db.ObjectId
+  status      FriendshipStatus @default(PENDING)
+  pairKey     String           @unique // sorted "minId_maxId" — one row per pair, any direction
+  createdAt   DateTime         @default(now())
+  respondedAt DateTime?
 
-  // Relations
-  owner   User            @relation("ProjectOwner", fields: [ownerId], references: [id])
-  members ProjectMember[]
-  columns Column[]
-  tasks   Task[]
-  activities Activity[]
+  requester User @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("Addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId])
+  @@index([addresseeId])
+  @@index([status])
 }
 
-// ============================================
-// PROJECT MEMBER
-// ============================================
+// ============================================================
+// PROJECT + MEMBERSHIP
+// ============================================================
 enum ProjectRole {
   OWNER
   ADMIN
   EDITOR
   VIEWER
+}
+
+model Project {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  color       String   @default("#5e6ad2")
+  icon        String   @default("folder")
+  isPersonal  Boolean  @default(false) // auto-created "Personal" space
+  ownerId     String   @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner      User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members    ProjectMember[]
+  sections   Section[]
+  tasks      Task[]
+  goals      Goal[]
+  activities Activity[]
+
+  @@index([ownerId])
 }
 
 model ProjectMember {
@@ -91,31 +122,31 @@ model ProjectMember {
   role      ProjectRole @default(EDITOR)
   joinedAt  DateTime    @default(now())
 
-  // Relations
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
+  @@index([userId])
 }
 
-// ============================================
-// COLUMN (Board columns)
-// ============================================
-model Column {
+// ============================================================
+// SECTION (board columns)
+// ============================================================
+model Section {
   id        String @id @default(auto()) @map("_id") @db.ObjectId
   name      String
-  color     String @default("#6d5bf7")
   position  Int
   projectId String @db.ObjectId
 
-  // Relations
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   tasks   Task[]
+
+  @@index([projectId])
 }
 
-// ============================================
+// ============================================================
 // TASK
-// ============================================
+// ============================================================
 enum Priority {
   NONE
   LOW
@@ -124,146 +155,188 @@ enum Priority {
   URGENT
 }
 
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  IN_REVIEW
-  DONE
-}
-
 model Task {
-  id              String     @id @default(auto()) @map("_id") @db.ObjectId
-  title           String
-  description     String?
-  priority        Priority   @default(NONE)
-  status          TaskStatus @default(TODO)
-  position        Int        @default(0)
-  dueDate         DateTime?
-  startDate       DateTime?
-  completedAt     DateTime?
-  totalTimeLogged Int        @default(0) // seconds
-  isFavorite      Boolean    @default(false)
-  tags            String[]
-  attachments     String[]
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  priority     Priority  @default(NONE)
+  position     Int       @default(0)
+  dueDate      DateTime?
+  startDate    DateTime?
+  completedAt  DateTime? // null = open
+  isFavorite   Boolean   @default(false)
+  tags         String[]
+  watcherIds   String[]  @db.ObjectId // notified without being assignee
+  deletedAt    DateTime? // soft delete
 
   // Foreign keys
   projectId    String  @db.ObjectId
-  columnId     String  @db.ObjectId
+  sectionId    String  @db.ObjectId
   assigneeId   String? @db.ObjectId
   creatorId    String  @db.ObjectId
   parentTaskId String? @db.ObjectId
+  goalId       String? @db.ObjectId
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  column   Column  @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  creator  User    @relation("TaskCreator", fields: [creatorId], references: [id])
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  section    Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator    User    @relation("TaskCreator", fields: [creatorId], references: [id])
+  parentTask Task?   @relation("SubTasks", fields: [parentTaskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subtasks   Task[]  @relation("SubTasks")
+  goal       Goal?   @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  comments   Comment[]
+  activities Activity[]
 
-  // Self-relation for subtasks
-  parentTask Task?  @relation("SubTasks", fields: [parentTaskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  subtasks   Task[] @relation("SubTasks")
-
-  // Other relations
-  comments    Comment[]
-  timeEntries TimeEntry[]
-  activities  Activity[]
+  @@index([projectId])
+  @@index([sectionId])
+  @@index([assigneeId])
+  @@index([goalId])
+  @@index([parentTaskId])
 }
 
-// ============================================
-// COMMENT
-// ============================================
-model Comment {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  content   String
-  mentions  String[] // User IDs mentioned
-  taskId    String   @db.ObjectId
-  authorId  String   @db.ObjectId
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ============================================================
+// GOAL
+// ============================================================
+enum GoalStatus {
+  ACTIVE
+  ON_HOLD
+  ACHIEVED
+  ARCHIVED
+}
 
-  // Relations
+model Goal {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  status      GoalStatus @default(ACTIVE)
+  targetDate  DateTime?
+  progress    Int        @default(0) // 0–100, rolled up from linked tasks
+  ownerId     String     @db.ObjectId
+  projectId   String?    @db.ObjectId
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  owner   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  tasks   Task[]
+
+  @@index([ownerId])
+  @@index([projectId])
+}
+
+// ============================================================
+// COMMENT
+// ============================================================
+model Comment {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  content    String
+  mentionIds String[] @db.ObjectId
+  taskId     String   @db.ObjectId
+  authorId   String   @db.ObjectId
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author User @relation(fields: [authorId], references: [id])
+
+  @@index([taskId])
 }
 
-// ============================================
-// TIME ENTRY
-// ============================================
-model TimeEntry {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  startTime   DateTime
-  endTime     DateTime?
-  duration    Int?     // seconds
-  description String?
-  isRunning   Boolean  @default(false)
-  taskId      String   @db.ObjectId
-  userId      String   @db.ObjectId
-  createdAt   DateTime @default(now())
+// ============================================================
+// CHAT
+// ============================================================
+model Conversation {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  isGroup       Boolean  @default(false)
+  name          String? // groups only
+  pairKey       String?  @unique // DMs: sorted "minId_maxId"
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
 
-  // Relations
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id])
+  participants ConversationParticipant[]
+  messages     Message[]
 }
 
-// ============================================
+model ConversationParticipant {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String    @db.ObjectId
+  userId         String    @db.ObjectId
+  lastReadAt     DateTime? // drives unread counts
+  joinedAt       DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String    @db.ObjectId
+  senderId       String    @db.ObjectId
+  content        String
+  createdAt      DateTime  @default(now())
+  editedAt       DateTime?
+  deletedAt      DateTime? // soft delete
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])
+}
+
+// ============================================================
 // NOTIFICATION
-// ============================================
+// ============================================================
 enum NotificationType {
-  TASK_ASSIGNED
-  TASK_COMPLETED
-  COMMENT_ADDED
-  COMMENT_MENTION
-  DUE_DATE_APPROACHING
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
   PROJECT_INVITE
-  TIME_LOGGED
+  TASK_ASSIGNED
+  TASK_COMMENT
+  TASK_MENTION
+  TASK_DUE
+  NEW_MESSAGE
 }
 
 model Notification {
-  id               String           @id @default(auto()) @map("_id") @db.ObjectId
-  type             NotificationType
-  title            String
-  message          String
-  isRead           Boolean          @default(false)
-  userId           String           @db.ObjectId
-  actorId          String?          @db.ObjectId
-  relatedTaskId    String?          @db.ObjectId
-  relatedProjectId String?          @db.ObjectId
-  createdAt        DateTime         @default(now())
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  recipientId String           @db.ObjectId
+  actorId     String?          @db.ObjectId
+  type        NotificationType
+  title       String
+  body        String?
+  entityType  String? // "FRIENDSHIP" | "PROJECT" | "TASK" | "CONVERSATION"
+  entityId    String? // makes the notification actionable (Accept/Decline)
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
 
-  // Relations
-  user  User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
-  actor User? @relation("NotificationActor", fields: [actorId], references: [id])
+  recipient User  @relation("NotifRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User? @relation("NotifActor", fields: [actorId], references: [id])
+
+  @@index([recipientId, isRead])
 }
 
-// ============================================
-// ACTIVITY LOG
-// ============================================
-enum ActivityAction {
-  CREATED
-  UPDATED
-  MOVED
-  COMPLETED
-  COMMENTED
-  TIME_LOGGED
-  ASSIGNED
-  STATUS_CHANGED
-  PRIORITY_CHANGED
-}
-
+// ============================================================
+// ACTIVITY (audit trail)
+// ============================================================
 model Activity {
-  id        String         @id @default(auto()) @map("_id") @db.ObjectId
-  action    ActivityAction
-  details   String?        // JSON string with additional details
-  taskId    String?        @db.ObjectId
-  projectId String?        @db.ObjectId
-  userId    String         @db.ObjectId
-  createdAt DateTime       @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  action    String // CREATED, MOVED, COMPLETED, ASSIGNED, ...
+  details   String? // JSON
+  taskId    String?  @db.ObjectId
+  projectId String?  @db.ObjectId
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
 
-  // Relations
-  task    Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([taskId])
 }

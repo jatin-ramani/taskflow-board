@@ -1,110 +1,205 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import {
+  requireUser,
+  requireTaskRole,
+  requireAssignable,
+  toErrorResponse,
+  HttpError,
+} from "@/lib/authz";
+import { taskCardSelect, publicUserSelect } from "@/lib/selectors";
+import { updateTaskSchema } from "@/lib/validations";
+import { createNotification } from "@/lib/notifications";
+import { logActivity } from "@/lib/activity";
+import { recomputeGoalProgress } from "@/lib/goals";
 
-// GET /api/tasks/[taskId] — full task with subtasks, comments, time entries, activity
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
+// GET /api/tasks/[taskId] — full detail (subtasks, comments, activity).
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ taskId: string }> }
+) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const me = await requireUser();
     const { taskId } = await params;
+    await requireTaskRole(me.id, taskId, "VIEWER");
 
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: {
-        assignee: { select: { id: true, name: true, email: true, avatar: true } },
-        creator: { select: { id: true, name: true, email: true, avatar: true } },
+      select: {
+        ...taskCardSelect,
+        description: true,
+        startDate: true,
+        creatorId: true,
+        parentTaskId: true,
+        assigneeId: true,
+        creator: { select: publicUserSelect },
+        section: { select: { id: true, name: true } },
         project: { select: { id: true, name: true, color: true } },
-        column: { select: { id: true, name: true, color: true } },
+        goal: { select: { id: true, title: true, progress: true } },
         subtasks: {
+          where: { deletedAt: null },
           orderBy: { position: "asc" },
-          include: {
-            assignee: { select: { id: true, name: true, email: true, avatar: true } },
-            _count: { select: { subtasks: true, comments: true } },
-          },
+          select: taskCardSelect,
         },
         comments: {
-          orderBy: { createdAt: "desc" },
-          include: { author: { select: { id: true, name: true, email: true, avatar: true } } },
-        },
-        timeEntries: {
-          orderBy: { createdAt: "desc" },
-          include: { user: { select: { id: true, name: true, email: true, avatar: true } } },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            content: true,
+            mentionIds: true,
+            createdAt: true,
+            author: { select: publicUserSelect },
+          },
         },
         activities: {
           orderBy: { createdAt: "desc" },
           take: 20,
-          include: { user: { select: { id: true, name: true, email: true, avatar: true } } },
+          select: {
+            id: true,
+            action: true,
+            details: true,
+            createdAt: true,
+            user: { select: publicUserSelect },
+          },
         },
-        _count: { select: { subtasks: true, comments: true } },
       },
     });
 
-    if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    if (!task || (task as { deletedAt?: Date | null }).deletedAt) {
+      throw new HttpError(404, "Task not found");
+    }
     return NextResponse.json(task);
-  } catch (error) {
-    console.error("GET task error:", error);
-    return NextResponse.json({ error: "Failed to fetch task" }, { status: 500 });
+  } catch (err) {
+    return toErrorResponse(err);
   }
 }
 
-// PUT /api/tasks/[taskId] — update task
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
+// PATCH /api/tasks/[taskId] — update fields (EDITOR+).
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ taskId: string }> }
+) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const me = await requireUser();
     const { taskId } = await params;
+    const { projectId } = await requireTaskRole(me.id, taskId, "EDITOR");
+
     const body = await req.json();
+    const parsed = updateTaskSchema.safeParse(body);
+    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
+    const d = parsed.data;
 
-    const updateData: Record<string, unknown> = {};
-    if (body.title !== undefined) updateData.title = body.title;
-    if (body.description !== undefined) updateData.description = body.description;
-    if (body.priority !== undefined) updateData.priority = body.priority;
-    if (body.status !== undefined) updateData.status = body.status;
-    if (body.columnId !== undefined) updateData.columnId = body.columnId;
-    if (body.position !== undefined) updateData.position = body.position;
-    if (body.assigneeId !== undefined) updateData.assigneeId = body.assigneeId || null;
-    if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
-    if (body.startDate !== undefined) updateData.startDate = body.startDate ? new Date(body.startDate) : null;
-    if (body.isFavorite !== undefined) updateData.isFavorite = body.isFavorite;
-    if (body.tags !== undefined) updateData.tags = body.tags;
+    const current = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { goalId: true, completedAt: true, assigneeId: true },
+    });
+    if (!current) throw new HttpError(404, "Task not found");
 
-    // If marking as done
-    if (body.status === "DONE") updateData.completedAt = new Date();
-    if (body.status && body.status !== "DONE") updateData.completedAt = null;
+    const data: Record<string, unknown> = {};
+    if (d.title !== undefined) data.title = d.title;
+    if (d.description !== undefined) data.description = d.description;
+    if (d.priority !== undefined) data.priority = d.priority;
+    if (d.position !== undefined) data.position = d.position;
+    if (d.tags !== undefined) data.tags = d.tags;
+    if (d.isFavorite !== undefined) data.isFavorite = d.isFavorite;
+    if (d.dueDate !== undefined) data.dueDate = d.dueDate ? new Date(d.dueDate) : null;
+    if (d.startDate !== undefined)
+      data.startDate = d.startDate ? new Date(d.startDate) : null;
+
+    if (d.sectionId !== undefined) {
+      const section = await prisma.section.findFirst({
+        where: { id: d.sectionId, projectId },
+        select: { id: true },
+      });
+      if (!section) throw new HttpError(400, "Invalid section for this project");
+      data.sectionId = d.sectionId;
+    }
+
+    if (d.assigneeId !== undefined) {
+      if (d.assigneeId) await requireAssignable(projectId, d.assigneeId);
+      data.assigneeId = d.assigneeId || null;
+    }
+
+    if (d.goalId !== undefined) {
+      if (d.goalId) {
+        const goal = await prisma.goal.findUnique({
+          where: { id: d.goalId },
+          select: { ownerId: true, projectId: true },
+        });
+        if (!goal || (goal.ownerId !== me.id && goal.projectId !== projectId)) {
+          throw new HttpError(400, "Invalid goal");
+        }
+      }
+      data.goalId = d.goalId || null;
+    }
+
+    if (d.completed !== undefined) {
+      data.completedAt = d.completed ? new Date() : null;
+    }
 
     const task = await prisma.task.update({
       where: { id: taskId },
-      data: updateData,
-      include: {
-        assignee: { select: { id: true, name: true, email: true, avatar: true } },
-        creator: { select: { id: true, name: true, email: true, avatar: true } },
-        _count: { select: { subtasks: true, comments: true } },
-      },
+      data,
+      select: taskCardSelect,
     });
 
-    // Log activity
-    const action = body.columnId ? "MOVED" : body.status === "DONE" ? "COMPLETED" : "UPDATED";
-    await prisma.activity.create({ data: { action, taskId, projectId: task.projectId, userId: session.user.id, details: JSON.stringify(body) } });
+    // Goal progress rollup: recompute any goal that gained/lost this task,
+    // or whose completion state changed.
+    const goalsToRecompute = new Set<string>();
+    if (current.goalId) goalsToRecompute.add(current.goalId);
+    if (task.goalId) goalsToRecompute.add(task.goalId);
+    for (const g of goalsToRecompute) await recomputeGoalProgress(g);
+
+    // Notify a newly-assigned user.
+    if (
+      d.assigneeId &&
+      d.assigneeId !== me.id &&
+      d.assigneeId !== current.assigneeId
+    ) {
+      await createNotification({
+        recipientId: d.assigneeId,
+        actorId: me.id,
+        type: "TASK_ASSIGNED",
+        title: "Task assigned to you",
+        body: `${me.name} assigned you “${task.title}”`,
+        entityType: "TASK",
+        entityId: task.id,
+      });
+    }
+
+    await logActivity({
+      action: d.completed !== undefined ? "COMPLETED" : "UPDATED",
+      userId: me.id,
+      taskId,
+      projectId,
+      details: d,
+    });
 
     return NextResponse.json(task);
-  } catch (error) {
-    console.error("PUT task error:", error);
-    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
+  } catch (err) {
+    return toErrorResponse(err);
   }
 }
 
-// DELETE /api/tasks/[taskId]
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
+// DELETE /api/tasks/[taskId] — soft delete (EDITOR+).
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ taskId: string }> }
+) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const me = await requireUser();
     const { taskId } = await params;
+    await requireTaskRole(me.id, taskId, "EDITOR");
 
-    await prisma.task.delete({ where: { id: taskId } });
-    return NextResponse.json({ message: "Task deleted" });
-  } catch (error) {
-    console.error("DELETE task error:", error);
-    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+    const task = await prisma.task.update({
+      where: { id: taskId },
+      data: { deletedAt: new Date() },
+      select: { goalId: true },
+    });
+    if (task.goalId) await recomputeGoalProgress(task.goalId);
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return toErrorResponse(err);
   }
 }

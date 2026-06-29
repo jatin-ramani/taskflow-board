@@ -22,7 +22,7 @@ export async function proxy(req: NextRequest) {
 
   // Redirect logged-in users away from auth pages
   if (isAuthPage && isLoggedIn) {
-    return NextResponse.redirect(new URL("/my-tasks", nextUrl));
+    return NextResponse.redirect(new URL("/home", nextUrl));
   }
 
   // Redirect unauthenticated users to login

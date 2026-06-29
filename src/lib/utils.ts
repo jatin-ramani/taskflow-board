@@ -6,6 +6,21 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Canonical, direction-independent key for a pair of ids.
+ * Used to guarantee one Friendship / one DM Conversation per pair.
+ */
+export function pairKey(a: string, b: string): string {
+  return [a, b].sort().join("_");
+}
+
+/** A user counts as "online" if seen within this window. */
+export const ONLINE_WINDOW_MS = 90_000;
+
+export function isOnline(lastSeenAt: Date | string): boolean {
+  return Date.now() - new Date(lastSeenAt).getTime() < ONLINE_WINDOW_MS;
+}
+
+/**
  * Format seconds into HH:MM:SS
  */
 export function formatDuration(totalSeconds: number): string {
@@ -64,7 +79,7 @@ export function getRandomColor(): string {
 /**
  * Relative time (e.g., "2 hours ago")
  */
-export function timeAgo(date: Date): string {
+export function timeAgo(date: Date | string): string {
   const now = new Date();
   const seconds = Math.floor((now.getTime() - new Date(date).getTime()) / 1000);
 

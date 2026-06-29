@@ -2,61 +2,62 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
+import { generateUniquePublicId } from "@/lib/ids";
+import { HttpError, toErrorResponse } from "@/lib/authz";
 
+// POST /api/auth/register — create account + a "Personal" project with default sections.
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const parsed = registerSchema.safeParse(body);
-
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0].message },
-        { status: 400 }
-      );
+      throw new HttpError(400, parsed.error.issues[0].message);
     }
 
-    const { name, email, password } = parsed.data;
+    const { name, password } = parsed.data;
+    const email = parsed.data.email.toLowerCase();
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
     });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "An account with this email already exists" },
-        { status: 409 }
-      );
+    if (existing) {
+      throw new HttpError(409, "An account with this email already exists");
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const publicId = await generateUniquePublicId();
+    const hashed = await bcrypt.hash(password, 12);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         name,
-        email: email.toLowerCase(),
-        password: hashedPassword,
+        email,
+        password: hashed,
+        publicId,
+        ownedProjects: {
+          create: {
+            name: "Personal",
+            isPersonal: true,
+            color: "#7c5cff",
+            icon: "user",
+            sections: {
+              create: [
+                { name: "Todo", position: 0 },
+                { name: "In Progress", position: 1 },
+                { name: "Done", position: 2 },
+              ],
+            },
+          },
+        },
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
+      select: { id: true, publicId: true },
     });
 
     return NextResponse.json(
-      { message: "Account created successfully", user },
+      { id: user.id, publicId: user.publicId },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
-      { status: 500 }
-    );
+  } catch (err) {
+    return toErrorResponse(err);
   }
 }

@@ -1,164 +1,154 @@
-// Extended type definitions for the application
-// These augment the Prisma-generated types with additional fields
+// Shared client-facing domain types.
+// API routes return JSON, so dates arrive as ISO strings on the client.
+import type { PublicUser } from "@/lib/selectors";
 
-export interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string | null;
-  role: "ADMIN" | "MANAGER" | "MEMBER";
-  createdAt: Date;
+export type { PublicUser };
+
+export type ProjectRole = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+export type Priority = "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+export type GoalStatus = "ACTIVE" | "ON_HOLD" | "ACHIEVED" | "ARCHIVED";
+export type FriendshipStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "BLOCKED";
+
+export interface FriendItem {
+  friendshipId: string;
+  user: PublicUser;
+  since: string;
+  online: boolean;
 }
 
-export interface ProjectWithDetails {
+export interface FriendRequestItem {
+  friendshipId: string;
+  user: PublicUser;
+  direction: "incoming" | "outgoing";
+  createdAt: string;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  isPersonal: boolean;
+  role: ProjectRole;
+  taskCount: number;
+  memberCount: number;
+}
+
+export interface TaskCardDTO {
+  id: string;
+  title: string;
+  priority: Priority;
+  position: number;
+  dueDate: string | null;
+  startDate: string | null;
+  completedAt: string | null;
+  isFavorite: boolean;
+  tags: string[];
+  sectionId: string;
+  projectId: string;
+  goalId: string | null;
+  assignee: PublicUser | null;
+  _count: { subtasks: number; comments: number };
+}
+
+export interface SectionDTO {
+  id: string;
+  name: string;
+  position: number;
+  tasks: TaskCardDTO[];
+}
+
+export interface ProjectMemberDTO {
+  id: string;
+  role: ProjectRole;
+  user: PublicUser;
+}
+
+export interface ProjectDetailDTO {
   id: string;
   name: string;
   description: string | null;
   color: string;
   icon: string;
-  status: "ACTIVE" | "ARCHIVED" | "COMPLETED";
+  isPersonal: boolean;
   ownerId: string;
-  owner: UserProfile;
-  members: ProjectMemberWithUser[];
-  columns: ColumnWithTasks[];
-  _count: {
-    tasks: number;
-  };
-  completedTaskCount?: number;
-  totalTaskCount?: number;
-  createdAt: Date;
-  updatedAt: Date;
+  owner: PublicUser;
+  members: ProjectMemberDTO[];
+  sections: SectionDTO[];
+  role: ProjectRole;
 }
 
-export interface ProjectMemberWithUser {
-  id: string;
-  userId: string;
-  role: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
-  user: UserProfile;
-  joinedAt: Date;
+/** A task card decorated with its project + section, for cross-project lists. */
+export interface MyTaskDTO extends TaskCardDTO {
+  section: { id: string; name: string };
+  project: { id: string; name: string; color: string };
 }
 
-export interface ColumnWithTasks {
-  id: string;
-  name: string;
-  color: string;
-  position: number;
-  projectId: string;
-  tasks: TaskCard[];
-}
-
-export interface TaskCard {
+export interface GoalDTO {
   id: string;
   title: string;
   description: string | null;
-  priority: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-  status: "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
-  position: number;
-  dueDate: Date | null;
-  totalTimeLogged: number;
-  tags: string[];
-  columnId: string;
-  projectId: string;
-  assignee: UserProfile | null;
-  creator: UserProfile;
-  _count: {
-    subtasks: number;
-    comments: number;
-  };
-  completedSubtaskCount?: number;
-  createdAt: Date;
+  status: GoalStatus;
+  targetDate: string | null;
+  progress: number;
+  projectId: string | null;
+  project: { id: string; name: string; color: string } | null;
+  taskCount: number;
+  completedCount: number;
 }
 
-export interface TaskDetail extends TaskCard {
-  startDate: Date | null;
-  completedAt: Date | null;
-  attachments: string[];
-  assigneeId: string | null;
-  creatorId: string;
-  parentTaskId: string | null;
-  subtasks: TaskCard[];
-  comments: CommentWithAuthor[];
-  timeEntries: TimeEntryWithUser[];
-  activities: ActivityWithUser[];
+export interface GoalDetailDTO extends GoalDTO {
+  tasks: MyTaskDTO[];
 }
 
-export interface CommentWithAuthor {
+export interface CommentDTO {
   id: string;
   content: string;
-  mentions: string[];
-  taskId: string;
-  authorId: string;
-  author: UserProfile;
-  createdAt: Date;
-  updatedAt: Date;
+  mentionIds: string[];
+  createdAt: string;
+  author: PublicUser;
 }
 
-export interface TimeEntryWithUser {
-  id: string;
-  startTime: Date;
-  endTime: Date | null;
-  duration: number | null;
-  description: string | null;
-  isRunning: boolean;
-  taskId: string;
-  userId: string;
-  user: UserProfile;
-  createdAt: Date;
-}
-
-export interface ActivityWithUser {
+export interface TaskActivityDTO {
   id: string;
   action: string;
   details: string | null;
-  taskId: string | null;
-  projectId: string | null;
-  userId: string;
-  user: UserProfile;
-  createdAt: Date;
+  createdAt: string;
+  user: PublicUser;
+}
+
+export interface TaskDetailDTO extends TaskCardDTO {
+  description: string | null;
+  creatorId: string;
+  parentTaskId: string | null;
+  assigneeId: string | null;
+  creator: PublicUser;
+  section: { id: string; name: string };
+  project: { id: string; name: string; color: string };
+  goal: { id: string; title: string; progress: number } | null;
+  subtasks: TaskCardDTO[];
+  comments: CommentDTO[];
+  activities: TaskActivityDTO[];
+}
+
+export interface DashboardStats {
+  activeCount: number;
+  completedCount: number;
+  overdueCount: number;
+  dueTodayCount: number;
+  completedThisWeek: number;
+  projectCount: number;
+  friendCount: number;
 }
 
 export interface NotificationItem {
   id: string;
   type: string;
   title: string;
-  message: string;
+  body: string | null;
+  entityType: string | null;
+  entityId: string | null;
   isRead: boolean;
-  userId: string;
-  actorId: string | null;
-  relatedTaskId: string | null;
-  relatedProjectId: string | null;
-  createdAt: Date;
-}
-
-// Dashboard Analytics Types
-export interface DashboardStats {
-  totalTasks: number;
-  completedTasks: number;
-  overdueTasks: number;
-  activeTasks: number;
-  totalTimeLoggedToday: number;
-  totalTimeLoggedWeek: number;
-  completedToday: number;
-  activeTimers: number;
-}
-
-export interface UserWorkload {
-  user: UserProfile;
-  totalTasks: number;
-  completedTasks: number;
-  inProgressTasks: number;
-  totalTimeLogged: number;
-}
-
-export interface TaskCompletionData {
-  date: string;
-  completed: number;
-  created: number;
-}
-
-export interface TimeDistribution {
-  project: string;
-  color: string;
-  totalTime: number;
-  percentage: number;
+  actor: PublicUser | null;
+  createdAt: string;
 }

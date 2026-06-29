@@ -1,166 +1,213 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { DndContext, closestCorners, DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
-import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
-import { BoardColumn } from "./board-column";
+import { useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Plus } from "lucide-react";
 import { TaskCard } from "./task-card";
-import { Plus, Loader2 } from "lucide-react";
+import { QuickAdd } from "./quick-add";
+import type { SectionDTO, TaskCardDTO } from "@/types";
 
-interface Column { id: string; name: string; color: string; position: number; tasks: Task[]; }
-interface Task {
-  id: string; title: string; description: string | null; priority: string; status: string;
-  position: number; dueDate: string | null; totalTimeLogged: number; tags: string[];
-  columnId: string; projectId: string;
-  assignee: { id: string; name: string; avatar: string | null } | null;
-  _count: { subtasks: number; comments: number };
-}
-
-interface KanbanBoardProps { 
-  projectId: string; 
+interface Props {
+  sections: SectionDTO[];
+  onSectionsChange: (next: SectionDTO[]) => void;
+  onPersistOrder: (sectionId: string, taskIds: string[]) => void;
   onTaskClick: (taskId: string) => void;
-  externalTaskId?: string | null;
-  refreshKey?: number;
+  onToggleComplete: (task: TaskCardDTO) => void;
+  onQuickAdd: (sectionId: string, title: string) => void;
+  onAddSection: () => void;
+  canEdit: boolean;
 }
 
-export function KanbanBoard({ projectId, onTaskClick, externalTaskId, refreshKey }: KanbanBoardProps) {
-  const [columns, setColumns] = useState<Column[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
+function SortableTaskCard({
+  task,
+  onClick,
+  onToggle,
+  disabled,
+}: {
+  task: TaskCardDTO;
+  onClick: () => void;
+  onToggle: () => void;
+  disabled: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: task.id, disabled });
 
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      {...attributes}
+      {...listeners}
+    >
+      <TaskCard task={task} onClick={onClick} onToggle={onToggle} dragging={isDragging} />
+    </div>
+  );
+}
+
+export function KanbanBoard({
+  sections,
+  onSectionsChange,
+  onPersistOrder,
+  onTaskClick,
+  onToggleComplete,
+  onQuickAdd,
+  onAddSection,
+  canEdit,
+}: Props) {
+  const [activeTask, setActiveTask] = useState<TaskCardDTO | null>(null);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
-  const fetchBoard = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const activeCols = data.columns.map((c: any) => ({
-          ...c,
-          tasks: c.tasks.filter((t: any) => t.status !== "DONE")
-        }));
-        setColumns(activeCols || []);
-      }
-    } catch { } finally { setLoading(false); }
-  }, [projectId]);
-
-  useEffect(() => { fetchBoard(); }, [fetchBoard, externalTaskId, refreshKey]);
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const task = findTask(event.active.id as string);
-    if (task) setActiveTask(task);
+  const findSection = (id: string): SectionDTO | undefined => {
+    if (sections.some((s) => s.id === id)) return sections.find((s) => s.id === id);
+    return sections.find((s) => s.tasks.some((t) => t.id === id));
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+  function handleDragStart(e: DragStartEvent) {
+    const id = e.active.id as string;
+    for (const s of sections) {
+      const t = s.tasks.find((t) => t.id === id);
+      if (t) return setActiveTask(t);
+    }
+  }
 
+  function handleDragOver(e: DragOverEvent) {
+    const { active, over } = e;
+    if (!over) return;
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const activeCol = findColumn(activeId);
-    const overCol = findColumnForOver(overId);
+    const from = findSection(activeId);
+    const to = findSection(overId);
+    if (!from || !to || from.id === to.id) return;
 
-    if (!activeCol || !overCol || activeCol.id === overCol.id) return;
+    const next = sections.map((s) => ({ ...s, tasks: [...s.tasks] }));
+    const fromS = next.find((s) => s.id === from.id)!;
+    const toS = next.find((s) => s.id === to.id)!;
+    const idx = fromS.tasks.findIndex((t) => t.id === activeId);
+    if (idx === -1) return;
+    const [moved] = fromS.tasks.splice(idx, 1);
+    moved.sectionId = toS.id;
 
-    setColumns((prev) => {
-      const newCols = prev.map((c) => ({ ...c, tasks: [...c.tasks] }));
-      const fromCol = newCols.find((c) => c.id === activeCol.id)!;
-      const toCol = newCols.find((c) => c.id === overCol.id)!;
-      const taskIdx = fromCol.tasks.findIndex((t) => t.id === activeId);
-      if (taskIdx === -1) return prev;
-      const [task] = fromCol.tasks.splice(taskIdx, 1);
-      task.columnId = toCol.id;
-      toCol.tasks.push(task);
-      return newCols;
-    });
-  };
+    const overIdx = toS.tasks.findIndex((t) => t.id === overId);
+    if (overIdx === -1) toS.tasks.push(moved);
+    else toS.tasks.splice(overIdx, 0, moved);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+    onSectionsChange(next);
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
     setActiveTask(null);
-    const { active, over } = event;
+    const { active, over } = e;
     if (!over) return;
+    const activeId = active.id as string;
+    const overId = over.id as string;
 
-    const taskId = active.id as string;
-    const overCol = findColumnForOver(over.id as string);
-    if (!overCol) return;
+    const section = findSection(activeId);
+    if (!section) return;
 
-    try {
-      await fetch(`/api/tasks/${taskId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ columnId: overCol.id, position: 0 }),
-      });
-    } catch {}
-  };
-
-  const findTask = (taskId: string): Task | null => {
-    for (const col of columns) { const t = col.tasks.find((t) => t.id === taskId); if (t) return t; }
-    return null;
-  };
-
-  const findColumn = (taskId: string): Column | null => {
-    return columns.find((c) => c.tasks.some((t) => t.id === taskId)) || null;
-  };
-
-  const findColumnForOver = (overId: string): Column | null => {
-    const col = columns.find((c) => c.id === overId);
-    if (col) return col;
-    return findColumn(overId);
-  };
-
-  const handleAddTask = async (columnId: string, title: string) => {
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, projectId, columnId }),
-      });
-      if (res.ok) {
-        const task = await res.json();
-        setColumns((prev) => prev.map((c) => c.id === columnId ? { ...c, tasks: [...c.tasks, task] } : c));
-      }
-    } catch {}
-  };
-
-  if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "400px", color: "var(--text-tertiary)", gap: "10px" }}>
-        <Loader2 size={24} className="animate-spin" /> Loading board...
-      </div>
+    let finalTasks = section.tasks;
+    const oldIdx = section.tasks.findIndex((t) => t.id === activeId);
+    const newIdx = section.tasks.findIndex((t) => t.id === overId);
+    if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+      finalTasks = arrayMove(section.tasks, oldIdx, newIdx);
+      onSectionsChange(
+        sections.map((s) => (s.id === section.id ? { ...s, tasks: finalTasks } : s))
+      );
+    }
+    onPersistOrder(
+      section.id,
+      finalTasks.map((t) => t.id)
     );
   }
 
   return (
-    <>
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-        <div style={{ display: "flex", gap: "16px", padding: "24px", height: "calc(100vh - 60px - 48px)", overflowX: "auto", alignItems: "flex-start" }}>
-          <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
-            {columns.map((column) => (
-              <BoardColumn key={column.id} column={column} onAddTask={handleAddTask} onTaskClick={onTaskClick} />
-            ))}
-          </SortableContext>
-
-          {/* Add Column Button */}
-          <button
-            style={{ minWidth: "280px", height: "44px", background: "var(--bg-secondary)", border: "1px dashed var(--border)", borderRadius: "var(--radius-md)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", color: "var(--text-tertiary)", fontSize: "14px", cursor: "pointer", transition: "var(--transition-fast)", flexShrink: 0 }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-tertiary)"; }}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex h-full gap-3 overflow-x-auto px-6 py-4">
+        {sections.map((section) => (
+          <div
+            key={section.id}
+            className="flex max-h-full w-[300px] shrink-0 flex-col rounded-xl border border-border bg-elevated/50"
           >
-            <Plus size={16} /> Add Column
-          </button>
-        </div>
-
-        <DragOverlay>
-          {activeTask && (
-            <div className="drag-overlay" style={{ width: "280px" }}>
-              <TaskCard task={activeTask} onClick={() => {}} isDragOverlay />
+            <div className="flex items-center justify-between px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-semibold">{section.name}</span>
+                <span className="text-[12px] text-faint">{section.tasks.length}</span>
+              </div>
             </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-    </>
+
+            <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
+              <SortableContext
+                items={section.tasks.map((t) => t.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {section.tasks.map((task) => (
+                  <SortableTaskCard
+                    key={task.id}
+                    task={task}
+                    disabled={!canEdit}
+                    onClick={() => onTaskClick(task.id)}
+                    onToggle={() => onToggleComplete(task)}
+                  />
+                ))}
+              </SortableContext>
+
+              {section.tasks.length === 0 && (
+                <div className="rounded-lg border border-dashed border-border/70 py-6 text-center text-[12px] text-faint">
+                  Drop tasks here
+                </div>
+              )}
+            </div>
+
+            {canEdit && (
+              <div className="px-2 pb-2">
+                <QuickAdd onAdd={(title) => onQuickAdd(section.id, title)} />
+              </div>
+            )}
+          </div>
+        ))}
+
+        {canEdit && (
+          <button
+            onClick={onAddSection}
+            className="flex h-9 w-[260px] shrink-0 items-center justify-center gap-2 rounded-xl border border-dashed border-border text-[13px] text-faint transition-colors hover:border-border-strong hover:text-muted"
+          >
+            <Plus size={15} /> Add section
+          </button>
+        )}
+      </div>
+
+      <DragOverlay>
+        {activeTask && (
+          <div className="w-[284px] rotate-1">
+            <TaskCard task={activeTask} />
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }

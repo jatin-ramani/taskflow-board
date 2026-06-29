@@ -1,140 +1,107 @@
 "use client";
 
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Calendar, Clock, MessageSquare, ListChecks } from "lucide-react";
-import { formatDuration, getInitials } from "@/lib/utils";
+import { format, isPast, isToday } from "date-fns";
+import { MessageSquare, GitBranch, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/ui/avatar";
+import { PRIORITY_META } from "@/lib/task-meta";
+import type { Priority, TaskCardDTO } from "@/types";
 
-interface Task {
-  id: string; title: string; description: string | null; priority: string; status: string;
-  position: number; dueDate: string | null; totalTimeLogged: number; tags: string[];
-  columnId: string; projectId: string;
-  assignee: { id: string; name: string; avatar: string | null } | null;
-  _count: { subtasks: number; comments: number };
+export function PriorityDot({ priority }: { priority: Priority }) {
+  if (priority === "NONE") {
+    return <span className="h-2.5 w-2.5 rounded-full border border-faint/60" />;
+  }
+  return (
+    <span
+      className="h-2.5 w-2.5 rounded-full"
+      style={{ background: PRIORITY_META[priority].color }}
+    />
+  );
 }
 
-interface TaskCardProps { task: Task; onClick: () => void; isDragOverlay?: boolean; }
+export function DueDate({
+  date,
+  done,
+}: {
+  date: string | null;
+  done: boolean;
+}) {
+  if (!date) return null;
+  const d = new Date(date);
+  const overdue = !done && isPast(d) && !isToday(d);
+  return (
+    <span className={cn("text-[11px]", overdue ? "text-danger" : "text-faint")}>
+      {format(d, "MMM d")}
+    </span>
+  );
+}
 
-const priorityColors: Record<string, string> = {
-  URGENT: "#ff5630", HIGH: "#ff8b00", MEDIUM: "#ffab00", LOW: "#36b37e", NONE: "transparent",
-};
-
-const priorityLabels: Record<string, string> = {
-  URGENT: "Urgent", HIGH: "High", MEDIUM: "Med", LOW: "Low", NONE: "",
-};
-
-export function TaskCard({ task, onClick, isDragOverlay }: TaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    cursor: isDragOverlay ? "grabbing" : "grab",
-  };
-
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "DONE";
+export function TaskCard({
+  task,
+  onClick,
+  onToggle,
+  dragging,
+}: {
+  task: TaskCardDTO;
+  onClick?: () => void;
+  onToggle?: () => void;
+  dragging?: boolean;
+}) {
+  const done = !!task.completedAt;
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
       onClick={onClick}
+      className={cn(
+        "group rounded-lg border border-border bg-surface p-2.5 transition-colors hover:border-border-strong",
+        onClick && "cursor-pointer",
+        dragging && "opacity-40"
+      )}
     >
-      <div
-        style={{
-          background: "var(--bg-primary)",
-          borderRadius: "var(--radius-md)",
-          padding: "12px",
-          border: "1px solid var(--border)",
-          cursor: "pointer",
-          transition: "var(--transition-fast)",
-          position: "relative",
-        }}
-        onMouseEnter={(e) => {
-          if (!isDragOverlay) {
-            e.currentTarget.style.borderColor = "var(--border-hover)";
-            e.currentTarget.style.boxShadow = "var(--shadow-sm)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isDragOverlay) {
-            e.currentTarget.style.borderColor = "var(--border)";
-            e.currentTarget.style.boxShadow = "none";
-          }
-        }}
-      >
-        {/* Priority indicator */}
-        {task.priority !== "NONE" && (
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "8px" }}>
-            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: priorityColors[task.priority] }} />
-            <span style={{ fontSize: "11px", fontWeight: 500, color: priorityColors[task.priority] }}>
-              {priorityLabels[task.priority]}
-            </span>
-          </div>
-        )}
-
-        {/* Title */}
-        <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "8px", wordBreak: "break-word" }}>
-          {task.title}
-        </div>
-
-        {/* Tags */}
-        {task.tags.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "8px" }}>
-            {task.tags.slice(0, 3).map((tag) => (
-              <span key={tag} style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-muted)", color: "var(--accent-light)", fontWeight: 500 }}>
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Bottom Meta */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {/* Due Date */}
-            {task.dueDate && (
-              <div data-tooltip="Due date" style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: isOverdue ? "var(--danger)" : "var(--text-tertiary)" }}>
-                <Calendar size={11} />
-                {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </div>
-            )}
-
-            {/* Time Logged */}
-            {task.totalTimeLogged > 0 && (
-              <div data-tooltip="Focus time" style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
-                <Clock size={11} />
-                {formatDuration(task.totalTimeLogged)}
-              </div>
-            )}
-
-            {/* Subtasks */}
-            {task._count.subtasks > 0 && (
-              <div data-tooltip="Subtasks" style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
-                <ListChecks size={11} />
-                {task._count.subtasks}
-              </div>
-            )}
-
-            {/* Comments */}
-            {task._count.comments > 0 && (
-              <div data-tooltip="Comments" style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "var(--text-tertiary)" }}>
-                <MessageSquare size={11} />
-                {task._count.comments}
-              </div>
-            )}
-          </div>
-
-          {/* Assignee Avatar */}
-          {task.assignee && (
-            <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: task.assignee.avatar ? `url(${task.assignee.avatar}) center/cover` : "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 600, color: "#fff" }} title={task.assignee.name}>
-              {!task.assignee.avatar && getInitials(task.assignee.name)}
-            </div>
+      <div className="flex items-start gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle?.();
+          }}
+          className={cn(
+            "mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border transition-colors",
+            done
+              ? "border-success bg-success text-white"
+              : "border-faint hover:border-text"
           )}
-        </div>
+          aria-label={done ? "Mark incomplete" : "Mark complete"}
+        >
+          {done && <Check size={10} />}
+        </button>
+        <p
+          className={cn(
+            "flex-1 text-[13px] leading-snug",
+            done && "text-faint line-through"
+          )}
+        >
+          {task.title}
+        </p>
+      </div>
+
+      <div className="mt-2 flex items-center gap-2 pl-[23px]">
+        <PriorityDot priority={task.priority} />
+        <DueDate date={task.dueDate} done={done} />
+        {task._count.subtasks > 0 && (
+          <span className="flex items-center gap-0.5 text-[11px] text-faint">
+            <GitBranch size={11} /> {task._count.subtasks}
+          </span>
+        )}
+        {task._count.comments > 0 && (
+          <span className="flex items-center gap-0.5 text-[11px] text-faint">
+            <MessageSquare size={11} /> {task._count.comments}
+          </span>
+        )}
+        {task.assignee && (
+          <span className="ml-auto">
+            <Avatar name={task.assignee.name} src={task.assignee.avatar} size="xs" />
+          </span>
+        )}
       </div>
     </div>
   );

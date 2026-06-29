@@ -1,36 +1,37 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { requireUser, toErrorResponse } from "@/lib/authz";
+import { publicUserSelect } from "@/lib/selectors";
 
+// GET /api/notifications — recent notifications + unread count.
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const me = await requireUser();
 
-    console.log(`Fetching notifications for user: ${session.user.id}`);
-    
-    try {
-      const notifications = await prisma.notification.findMany({
-        where: { userId: session.user.id },
-        include: { 
-          actor: { select: { id: true, name: true, avatar: true } }
+    const [items, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: { recipientId: me.id },
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          body: true,
+          entityType: true,
+          entityId: true,
+          isRead: true,
+          createdAt: true,
+          actor: { select: publicUserSelect },
         },
         orderBy: { createdAt: "desc" },
         take: 50,
-      });
-      return NextResponse.json(notifications);
-    } catch (dbError: any) {
-      console.error("Database error fetching notifications:", dbError.message);
-      // Fallback: Try without include if the relation is missing
-      const notifications = await prisma.notification.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-      });
-      return NextResponse.json(notifications);
-    }
-  } catch (error) {
-    console.error("GET notifications error:", error);
-    return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 });
+      }),
+      prisma.notification.count({
+        where: { recipientId: me.id, isRead: false },
+      }),
+    ]);
+
+    return NextResponse.json({ items, unreadCount });
+  } catch (err) {
+    return toErrorResponse(err);
   }
 }

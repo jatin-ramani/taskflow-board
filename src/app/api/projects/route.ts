@@ -1,75 +1,96 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { requireUser, toErrorResponse, HttpError } from "@/lib/authz";
 import { createProjectSchema } from "@/lib/validations";
 import { getRandomColor } from "@/lib/utils";
+import type { ProjectRole } from "@prisma/client";
 
-// GET /api/projects — List all projects for the current user
+// GET /api/projects — projects the current user owns or is a member of.
+// (Full CRUD lands in Phase 3; this powers the sidebar now.)
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const me = await requireUser();
 
     const projects = await prisma.project.findMany({
       where: {
-        OR: [
-          { ownerId: session.user.id },
-          { members: { some: { userId: session.user.id } } },
-        ],
+        OR: [{ ownerId: me.id }, { members: { some: { userId: me.id } } }],
       },
-      include: {
-        owner: { select: { id: true, name: true, email: true, avatar: true } },
-        members: { include: { user: { select: { id: true, name: true, email: true, avatar: true } } } },
-        _count: { select: { tasks: true } },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        icon: true,
+        isPersonal: true,
+        ownerId: true,
+        members: { where: { userId: me.id }, select: { role: true } },
+        _count: { select: { tasks: true, members: true } },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ isPersonal: "desc" }, { updatedAt: "desc" }],
     });
 
-    return NextResponse.json(projects);
-  } catch (error) {
-    console.error("GET /api/projects error:", error);
-    return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 });
+    const result = projects.map((p) => {
+      const role: ProjectRole =
+        p.ownerId === me.id ? "OWNER" : p.members[0]?.role ?? "VIEWER";
+      return {
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        icon: p.icon,
+        isPersonal: p.isPersonal,
+        role,
+        taskCount: p._count.tasks,
+        memberCount: p._count.members,
+      };
+    });
+
+    return NextResponse.json(result);
+  } catch (err) {
+    return toErrorResponse(err);
   }
 }
 
-// POST /api/projects — Create a new project
+// POST /api/projects — create a project (with default sections).
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+    const me = await requireUser();
     const body = await req.json();
     const parsed = createProjectSchema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
 
     const { name, description, color, icon } = parsed.data;
 
     const project = await prisma.project.create({
       data: {
         name,
-        description,
+        description: description || null,
         color: color || getRandomColor(),
         icon: icon || "folder",
-        ownerId: session.user.id,
-        members: { create: { userId: session.user.id, role: "OWNER" } },
-        columns: {
+        ownerId: me.id,
+        sections: {
           create: [
-            { name: "To Do", color: "#6b7280", position: 0 },
-            { name: "In Progress", color: "#0065ff", position: 1 },
-            { name: "In Review", color: "#ff8b00", position: 2 },
-            { name: "Done", color: "#36b37e", position: 3 },
+            { name: "Todo", position: 0 },
+            { name: "In Progress", position: 1 },
+            { name: "Done", position: 2 },
           ],
         },
       },
-      include: {
-        columns: true,
-        members: { include: { user: { select: { id: true, name: true, email: true, avatar: true } } } },
-      },
+      select: { id: true, name: true, color: true, icon: true, isPersonal: true },
     });
 
-    return NextResponse.json(project, { status: 201 });
-  } catch (error) {
-    console.error("POST /api/projects error:", error);
-    return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+    return NextResponse.json(
+      {
+        id: project.id,
+        name: project.name,
+        color: project.color,
+        icon: project.icon,
+        isPersonal: project.isPersonal,
+        role: "OWNER" as ProjectRole,
+        taskCount: 0,
+        memberCount: 0,
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    return toErrorResponse(err);
   }
 }

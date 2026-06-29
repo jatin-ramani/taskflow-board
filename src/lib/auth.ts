@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { loginSchema } from "@/lib/validations";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -12,61 +13,53 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        const parsed = loginSchema.safeParse(credentials);
+        if (!parsed.success) return null;
 
-        const email = (credentials.email as string).toLowerCase();
-        const password = credentials.password as string;
+        const email = parsed.data.email.toLowerCase();
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) return null;
 
-        try {
-          const user = await prisma.user.findUnique({
-            where: { email },
-          });
+        const ok = await bcrypt.compare(parsed.data.password, user.password);
+        if (!ok) return null;
 
-          if (!user || !user.password) return null;
-
-          const passwordsMatch = await bcrypt.compare(password, user.password);
-          if (!passwordsMatch) return null;
-
-          return {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            image: user.avatar,
-            role: user.role as any,
-          };
-        } catch (error) {
-          console.error("Auth error:", error);
-          return null;
-        }
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.avatar,
+          publicId: user.publicId,
+          username: user.username,
+          role: user.role,
+        };
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
-  },
-  pages: {
-    signIn: "/login",
-  },
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  pages: { signIn: "/login" },
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
-        token.image = (user as any).image;
+        token.id = user.id as string;
+        token.role = user.role ?? "MEMBER";
+        token.publicId = user.publicId as string;
+        token.username = user.username ?? null;
+        token.picture = user.image ?? null;
       }
       if (trigger === "update" && session?.user) {
-        token.image = session.user.image || token.image;
-        token.name = session.user.name || token.name;
+        token.picture = session.user.image ?? token.picture;
+        token.name = session.user.name ?? token.name;
+        token.username = session.user.username ?? token.username;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token) {
-        session.user.id = token.id as string;
-        (session.user as any).role = token.role as string;
-        session.user.image = token.image as string;
-        (session.user as any).avatar = token.image as string;
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.publicId = token.publicId;
+        session.user.username = token.username;
+        session.user.image = token.picture ?? null;
       }
       return session;
     },
