@@ -208,7 +208,7 @@ function CreateGoalDialog({
             placeholder="Description (optional)"
             rows={3}
           />
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <label className="flex flex-1 flex-col gap-1 text-[12px] text-muted">
               Target date
               <Input

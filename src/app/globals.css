@@ -1,66 +1,135 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================
-   TaskFlow — Linear-style design tokens
-   Dark, dense, refined. One accent. Hairline borders.
+   Theme tokens — values live on :root (light) / .dark (dark);
+   @theme inline maps them so utilities respect runtime switching.
    ============================================================ */
-@theme {
-  /* Surfaces (darkest -> lightest) — warm dark, layered like Asana/Linear */
-  --color-bg: #18191c;
-  --color-elevated: #1e1f23;
-  --color-surface: #26272c;
-  --color-overlay: #2d2e34;
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-elevated: var(--c-elevated);
+  --color-surface: var(--c-surface);
+  --color-overlay: var(--c-overlay);
+  --color-sidebar: var(--c-sidebar);
+  --color-border: var(--c-border);
+  --color-border-strong: var(--c-border-strong);
 
-  /* Borders */
-  --color-border: #303137;
-  --color-border-strong: #3c3e45;
+  --color-text: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
 
-  /* Text */
-  --color-text: #f4f5f6;
-  --color-muted: #a1a5ad;
-  --color-faint: #71757d;
-
-  /* Accent (violet) */
-  --color-accent: #7c5cff;
-  --color-accent-hover: #8d72ff;
-  --color-accent-soft: #7c5cff26;
+  --color-accent: var(--c-accent);
+  --color-accent-hover: var(--c-accent-hover);
+  --color-accent-soft: var(--c-accent-soft);
   --color-accent-fg: #ffffff;
 
-  /* Semantic */
-  --color-success: #4cb782;
-  --color-warning: #f2c94c;
-  --color-danger: #eb5757;
-  --color-danger-hover: #f06a6a;
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --color-danger: var(--c-danger);
+  --color-danger-hover: var(--c-danger-hover);
 
-  /* Priority swatches */
-  --color-prio-urgent: #eb5757;
-  --color-prio-high: #f2994a;
-  --color-prio-medium: #f2c94c;
-  --color-prio-low: #56a8f5;
+  --color-prio-urgent: #ef4444;
+  --color-prio-high: #f59e0b;
+  --color-prio-medium: #eab308;
+  --color-prio-low: #3b82f6;
 
-  /* Radii */
-  --radius-sm: 5px;
-  --radius-md: 7px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
+  /* Chat message surfaces */
+  --color-msg-mine: var(--c-msg-mine);
+  --color-msg-mine-fg: var(--c-msg-mine-fg);
 
-  /* Fonts */
+  /* Minimal, professional roundness (Teams-like) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --shadow-popover: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --shadow-sm: var(--sh-sm);
+  --shadow-md: var(--sh-md);
+  --shadow-lg: var(--sh-lg);
+  --shadow-popover: var(--sh-popover);
+}
+
+/* ---------- Light (Teams / Fluent) ---------- */
+:root {
+  color-scheme: light;
+
+  --c-bg: #f5f5f5;
+  --c-elevated: #ffffff;
+  --c-surface: #ebebeb;
+  --c-overlay: #ffffff;
+  --c-sidebar: #ffffff;
+  --c-border: #e1e1e1;
+  --c-border-strong: #d1d1d1;
+
+  --c-text: #242424;
+  --c-muted: #616161;
+  --c-faint: #9e9e9e;
+
+  --c-accent: #5b5fc7;
+  --c-accent-hover: #4f52b2;
+  --c-accent-soft: rgba(91, 95, 199, 0.1);
+
+  --c-msg-mine: #e8ebfa;
+  --c-msg-mine-fg: #242424;
+
+  --c-success: #0e7c42;
+  --c-warning: #b26a00;
+  --c-danger: #c4314b;
+  --c-danger-hover: #a82c43;
+
+  --c-scrollbar: #c8c8c8;
+  --c-scrollbar-hover: #b3b3b3;
+
+  --sh-sm: 0 1px 2px rgba(17, 17, 26, 0.05), 0 0 1px rgba(17, 17, 26, 0.05);
+  --sh-md: 0 2px 8px rgba(17, 17, 26, 0.06), 0 1px 3px rgba(17, 17, 26, 0.05);
+  --sh-lg: 0 12px 32px rgba(17, 17, 26, 0.1), 0 4px 10px rgba(17, 17, 26, 0.05);
+  --sh-popover: 0 8px 28px rgba(17, 17, 26, 0.12), 0 2px 6px rgba(17, 17, 26, 0.06);
+}
+
+/* ---------- Dark (Teams / Fluent) ---------- */
+.dark {
+  color-scheme: dark;
+
+  --c-bg: #1f1f1f;
+  --c-elevated: #2b2b2b;
+  --c-surface: #333333;
+  --c-overlay: #292929;
+  --c-sidebar: #121212;
+  --c-border: #3d3d3d;
+  --c-border-strong: #4f4f4f;
+
+  --c-text: #f5f5f5;
+  --c-muted: #adadad;
+  --c-faint: #808080;
+
+  --c-accent: #5b5fc7;
+  --c-accent-hover: #7174d4;
+  --c-accent-soft: rgba(124, 128, 230, 0.2);
+
+  --c-msg-mine: #444466;
+  --c-msg-mine-fg: #f5f5f5;
+
+  --c-success: #6bb700;
+  --c-warning: #ffaa44;
+  --c-danger: #f1707b;
+  --c-danger-hover: #f48a93;
+
+  --c-scrollbar: #4a4a4a;
+  --c-scrollbar-hover: #5c5c5c;
+
+  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --sh-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --sh-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --sh-popover: 0 8px 28px rgba(0, 0, 0, 0.55);
 }
 
 /* ============================================================
-   Base — MUST live in @layer base so Tailwind's utility layer
-   (px-*, m-*, p-*, etc.) can override the reset. Unlayered CSS
-   beats layered CSS in v4, so an unlayered `* { padding: 0 }`
-   would silently kill every padding/margin utility.
+   Base — in @layer base so utilities can override the reset.
    ============================================================ */
 @layer base {
   * {
@@ -70,7 +139,6 @@
   }
 
   html {
-    color-scheme: dark;
     background-color: var(--color-bg);
   }
 
@@ -80,7 +148,7 @@
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
-    letter-spacing: -0.006em;
+    letter-spacing: -0.011em;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -90,7 +158,6 @@
     color: var(--color-text);
   }
 
-  /* Inputs inherit the type system */
   input,
   button,
   textarea,
@@ -106,62 +173,53 @@
 }
 
 /* ============================================================
-   Scrollbars — thin and unobtrusive
+   Scrollbars
    ============================================================ */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-color: var(--c-scrollbar) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
+  background: var(--c-scrollbar);
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #3a3f48;
+  background: var(--c-scrollbar-hover);
   background-clip: padding-box;
 }
 
-/* ============================================================
-   Focus ring — accessible, accent-tinted
-   ============================================================ */
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
 /* ============================================================
-   Helpers
+   Animations & helpers
    ============================================================ */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-.animate-spin {
-  animation: spin 0.7s linear infinite;
-}
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 0.7s linear infinite; }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.animate-fade-in {
-  animation: fade-in 0.15s ease-out;
-}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-fade-in { animation: fade-in 0.15s ease-out; }
 
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-slide-up {
-  animation: slide-up 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
+.animate-slide-up { animation: slide-up 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
 
-/* Truncate helper */
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-left { animation: slide-in-left 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;

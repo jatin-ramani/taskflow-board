@@ -22,10 +22,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { Plus } from "lucide-react";
 import { TaskCard } from "./task-card";
 import { QuickAdd } from "./quick-add";
-import type { SectionDTO, TaskCardDTO } from "@/types";
+import type { SectionDTO, TaskCardDTO, TagDTO, MilestoneDTO } from "@/types";
 
 interface Props {
   sections: SectionDTO[];
+  tags?: TagDTO[];
+  milestones?: MilestoneDTO[];
   onSectionsChange: (next: SectionDTO[]) => void;
   onPersistOrder: (sectionId: string, taskIds: string[]) => void;
   onTaskClick: (taskId: string) => void;
@@ -40,11 +42,15 @@ function SortableTaskCard({
   onClick,
   onToggle,
   disabled,
+  tags,
+  milestone,
 }: {
   task: TaskCardDTO;
   onClick: () => void;
   onToggle: () => void;
   disabled: boolean;
+  tags?: { id: string; name: string; color: string }[];
+  milestone?: { name: string; color: string } | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id, disabled });
@@ -56,13 +62,15 @@ function SortableTaskCard({
       {...attributes}
       {...listeners}
     >
-      <TaskCard task={task} onClick={onClick} onToggle={onToggle} dragging={isDragging} />
+      <TaskCard task={task} onClick={onClick} onToggle={onToggle} dragging={isDragging} tags={tags} milestone={milestone} />
     </div>
   );
 }
 
 export function KanbanBoard({
   sections,
+  tags = [],
+  milestones = [],
   onSectionsChange,
   onPersistOrder,
   onTaskClick,
@@ -75,6 +83,12 @@ export function KanbanBoard({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
+
+  const tagById = new Map(tags.map((t) => [t.id, t]));
+  const msById = new Map(milestones.map((m) => [m.id, m]));
+  const resolveTags = (ids: string[]) =>
+    ids.map((id) => tagById.get(id)).filter(Boolean) as TagDTO[];
+  const resolveMs = (id: string | null) => (id ? msById.get(id) ?? null : null);
 
   const findSection = (id: string): SectionDTO | undefined => {
     if (sections.some((s) => s.id === id)) return sections.find((s) => s.id === id);
@@ -172,6 +186,8 @@ export function KanbanBoard({
                     disabled={!canEdit}
                     onClick={() => onTaskClick(task.id)}
                     onToggle={() => onToggleComplete(task)}
+                    tags={resolveTags(task.tagIds)}
+                    milestone={resolveMs(task.milestoneId)}
                   />
                 ))}
               </SortableContext>
@@ -204,7 +220,11 @@ export function KanbanBoard({
       <DragOverlay>
         {activeTask && (
           <div className="w-[284px] rotate-1">
-            <TaskCard task={activeTask} />
+            <TaskCard
+              task={activeTask}
+              tags={resolveTags(activeTask.tagIds)}
+              milestone={resolveMs(activeTask.milestoneId)}
+            />
           </div>
         )}
       </DragOverlay>

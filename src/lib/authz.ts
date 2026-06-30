@@ -120,6 +120,19 @@ export async function requireFriendship(a: string, b: string): Promise<void> {
   }
 }
 
+/** Require the user to be a participant of the conversation. Returns the participant row. */
+export async function requireConversationParticipant(
+  userId: string,
+  conversationId: string
+) {
+  const part = await prisma.conversationParticipant.findFirst({
+    where: { conversationId, userId },
+    select: { id: true, lastReadAt: true, clearedAt: true },
+  });
+  if (!part) throw new HttpError(403, "You're not in this conversation");
+  return part;
+}
+
 /** Map thrown errors to a JSON response. Wrap every handler's catch with this. */
 export function toErrorResponse(err: unknown): NextResponse {
   if (err instanceof HttpError) {

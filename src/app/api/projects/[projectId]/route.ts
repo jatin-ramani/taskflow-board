@@ -50,12 +50,38 @@ export async function GET(
             },
           },
         },
+        milestones: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, name: true, color: true, dueDate: true, completed: true },
+        },
+        tags: {
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, color: true },
+        },
       },
     });
 
     if (!project) throw new HttpError(404, "Project not found");
 
-    return NextResponse.json({ ...project, role: access.role });
+    // Worklog totals per task (one aggregation for the whole project).
+    const worklogs = await prisma.timeLog.groupBy({
+      by: ["taskId"],
+      where: { task: { projectId } },
+      _sum: { durationSeconds: true },
+    });
+    const worklogMap = new Map(
+      worklogs.map((w) => [w.taskId, w._sum.durationSeconds ?? 0])
+    );
+
+    const sections = project.sections.map((s) => ({
+      ...s,
+      tasks: s.tasks.map((t) => ({
+        ...t,
+        worklogSeconds: worklogMap.get(t.id) ?? 0,
+      })),
+    }));
+
+    return NextResponse.json({ ...project, sections, role: access.role });
   } catch (err) {
     return toErrorResponse(err);
   }

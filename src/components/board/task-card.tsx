@@ -1,7 +1,7 @@
 "use client";
 
 import { format, isPast, isToday } from "date-fns";
-import { MessageSquare, GitBranch, Check } from "lucide-react";
+import { MessageSquare, GitBranch, Check, Flag, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { PRIORITY_META } from "@/lib/task-meta";
@@ -41,13 +41,18 @@ export function TaskCard({
   onClick,
   onToggle,
   dragging,
+  tags,
+  milestone,
 }: {
   task: TaskCardDTO;
   onClick?: () => void;
   onToggle?: () => void;
   dragging?: boolean;
+  tags?: { id: string; name: string; color: string }[];
+  milestone?: { name: string; color: string } | null;
 }) {
   const done = !!task.completedAt;
+  const estH = task.estimateMinutes ? (task.estimateMinutes / 60).toFixed(task.estimateMinutes % 60 ? 1 : 0) : null;
 
   return (
     <div
@@ -84,9 +89,36 @@ export function TaskCard({
         </p>
       </div>
 
+      {((tags && tags.length > 0) || milestone) && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1 pl-[23px]">
+          {milestone && (
+            <span
+              className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium"
+              style={{ background: `${milestone.color}22`, color: milestone.color }}
+            >
+              <Flag size={9} /> {milestone.name}
+            </span>
+          )}
+          {tags?.slice(0, 3).map((t) => (
+            <span
+              key={t.id}
+              className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+              style={{ background: `${t.color}22`, color: t.color }}
+            >
+              {t.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="mt-2 flex items-center gap-2 pl-[23px]">
         <PriorityDot priority={task.priority} />
         <DueDate date={task.dueDate} done={done} />
+        {estH && (
+          <span className="flex items-center gap-0.5 text-[11px] text-faint">
+            <Clock size={11} /> {estH}h
+          </span>
+        )}
         {task._count.subtasks > 0 && (
           <span className="flex items-center gap-0.5 text-[11px] text-faint">
             <GitBranch size={11} /> {task._count.subtasks}

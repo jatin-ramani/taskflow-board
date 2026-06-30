@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { ToastProvider } from "@/components/ui/toast";
-import { AppSidebar } from "@/components/layout/app-sidebar";
+import { AppShell } from "@/components/layout/app-shell";
+import { Realtime } from "@/components/layout/realtime";
 
 export default async function AppLayout({
   children,
@@ -15,12 +16,8 @@ export default async function AppLayout({
   return (
     <SessionProvider session={session}>
       <ToastProvider>
-        <div className="flex h-screen overflow-hidden bg-bg">
-          <AppSidebar />
-          <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            {children}
-          </main>
-        </div>
+        <Realtime />
+        <AppShell>{children}</AppShell>
       </ToastProvider>
     </SessionProvider>
   );

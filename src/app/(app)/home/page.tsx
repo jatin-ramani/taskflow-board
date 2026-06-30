@@ -19,6 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { PriorityDot, DueDate } from "@/components/board/task-card";
 import { TaskDetailPanel } from "@/components/task/task-detail-panel";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
+import { MobileMenuButton } from "@/components/layout/app-shell";
 import type {
   DashboardStats,
   MyTaskDTO,
@@ -117,19 +118,24 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-5xl px-8 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[13px] text-muted">{dateStr}</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-              {greeting}, {user?.name?.split(" ")[0]}
-            </h1>
+          <div className="flex items-start gap-2">
+            <MobileMenuButton className="-ml-1 mt-1" />
+            <div>
+              <p className="text-[13px] text-muted">{dateStr}</p>
+              <h1 className="mt-0.5 text-xl font-semibold tracking-tight sm:text-2xl">
+                {greeting}, {user?.name?.split(" ")[0]}
+              </h1>
+            </div>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-elevated px-3.5 py-2 text-[13px]">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-elevated px-3 py-2 text-[13px]">
             <CheckCircle2 size={15} className="text-success" />
             <span className="font-medium">{stats?.completedThisWeek ?? 0}</span>
-            <span className="text-muted">completed this week</span>
+            <span className="text-muted">
+              <span className="hidden sm:inline">completed </span>this week
+            </span>
           </div>
         </div>
 
@@ -139,7 +145,7 @@ export default function DashboardPage() {
             icon={<ListTodo size={15} />}
             label="Active tasks"
             value={stats?.activeCount ?? 0}
-            color="#7c5cff"
+            color="#5b5fc7"
           />
           <StatCard
             icon={<CalendarClock size={15} />}

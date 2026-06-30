@@ -14,16 +14,15 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { UserMenu } from "./user-menu";
 import type { ProjectSummary } from "@/types";
 
 const NAV = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/my-tasks", label: "My Tasks", icon: CheckSquare },
-  { href: "/inbox", label: "Inbox", icon: Inbox, badge: "unread" as const },
+  { href: "/inbox", label: "Inbox", icon: Inbox, badge: "inbox" as const },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/friends", label: "Friends", icon: Users },
-  { href: "/messages", label: "Messages", icon: MessageSquare },
+  { href: "/messages", label: "Messages", icon: MessageSquare, badge: "messages" as const },
 ];
 
 // Other components can ask the sidebar to refresh its badges/projects.
@@ -37,18 +36,24 @@ export function AppSidebar() {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [unread, setUnread] = useState(0);
+  const [msgUnread, setMsgUnread] = useState(0);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const createRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
-      const [pRes, nRes] = await Promise.all([
+      const [pRes, nRes, cRes] = await Promise.all([
         fetch("/api/projects"),
         fetch("/api/notifications"),
+        fetch("/api/conversations"),
       ]);
       if (pRes.ok) setProjects(await pRes.json());
       if (nRes.ok) setUnread((await nRes.json()).unreadCount ?? 0);
+      if (cRes.ok) {
+        const convos: { unreadCount: number }[] = await cRes.json();
+        setMsgUnread(convos.reduce((n, c) => n + (c.unreadCount || 0), 0));
+      }
     } catch {
       /* ignore */
     }
@@ -87,17 +92,9 @@ export function AppSidebar() {
   }
 
   return (
-    <aside className="flex h-screen w-[244px] shrink-0 flex-col border-r border-border bg-elevated">
-      {/* Brand */}
-      <div className="flex h-14 items-center gap-2.5 px-4">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent">
-          <CheckSquare size={14} className="text-white" />
-        </div>
-        <span className="text-sm font-semibold tracking-tight">TaskFlow</span>
-      </div>
-
+    <aside className="flex h-full w-[244px] shrink-0 flex-col border-r border-border bg-sidebar">
       {/* Nav */}
-      <nav className="flex flex-col gap-0.5 px-2.5">
+      <nav className="flex flex-col gap-0.5 px-2.5 pt-3">
         {NAV.map((item) => {
           const active = isActive(item.href);
           const Icon = item.icon;
@@ -114,11 +111,19 @@ export function AppSidebar() {
             >
               <Icon size={16} className={active ? "text-text" : "text-faint"} />
               <span className="flex-1">{item.label}</span>
-              {item.badge === "unread" && unread > 0 && (
-                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              )}
+              {(() => {
+                const count =
+                  item.badge === "inbox"
+                    ? unread
+                    : item.badge === "messages"
+                      ? msgUnread
+                      : 0;
+                return count > 0 ? (
+                  <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+                    {count > 99 ? "99+" : count}
+                  </span>
+                ) : null;
+              })()}
             </Link>
           );
         })}
@@ -182,11 +187,6 @@ export function AppSidebar() {
             <p className="px-2.5 py-1 text-[12px] text-faint">No projects yet</p>
           )}
         </div>
-      </div>
-
-      {/* User */}
-      <div className="border-t border-border p-2.5">
-        <UserMenu />
       </div>
     </aside>
   );

@@ -98,6 +98,14 @@ export async function POST(req: NextRequest) {
         startDate: d.startDate ? new Date(d.startDate) : null,
         tags: d.tags ?? [],
         position: (last?.position ?? -1) + 1,
+        taskType: d.taskType || null,
+        estimateMinutes: d.estimateMinutes ?? null,
+        billable: d.billable ?? false,
+        milestoneId: d.milestoneId || null,
+        tagIds: d.tagIds ?? [],
+        followerIds: d.followerIds ?? [],
+        plannedStart: d.plannedStart ? new Date(d.plannedStart) : null,
+        plannedEnd: d.plannedEnd ? new Date(d.plannedEnd) : null,
         // Write nullable filter-fields explicitly: MongoDB distinguishes a JSON
         // `null` from an absent field, and our `{ field: null }` filters only
         // match explicit null. Keeping documents uniform keeps those filters correct.

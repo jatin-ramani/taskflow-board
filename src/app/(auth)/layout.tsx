@@ -11,7 +11,7 @@ export default function AuthLayout({
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div
           className="absolute left-1/2 top-[-18%] h-[520px] w-[780px] -translate-x-1/2 rounded-full opacity-[0.16] blur-[130px]"
-          style={{ background: "radial-gradient(circle, #7c5cff, transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, #5b5fc7, transparent 70%)" }}
         />
         <div
           className="absolute inset-0 opacity-[0.025]"

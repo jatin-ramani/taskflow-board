@@ -87,6 +87,17 @@ export const updateSectionSchema = z.object({
 // ============================================================
 // TASKS
 // ============================================================
+const pmsTaskFields = {
+  taskType: z.string().max(40).nullable().optional(),
+  estimateMinutes: z.number().int().min(0).max(1000000).nullable().optional(),
+  billable: z.boolean().optional(),
+  milestoneId: z.string().nullable().optional(),
+  tagIds: z.array(z.string()).optional(),
+  followerIds: z.array(z.string()).optional(),
+  plannedStart: z.string().nullable().optional(),
+  plannedEnd: z.string().nullable().optional(),
+};
+
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1, "Task title is required").max(200),
   description: z.string().max(5000).optional(),
@@ -99,6 +110,7 @@ export const createTaskSchema = z.object({
   parentTaskId: z.string().nullable().optional(),
   goalId: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
+  ...pmsTaskFields,
 });
 
 export const updateTaskSchema = z.object({
@@ -114,6 +126,28 @@ export const updateTaskSchema = z.object({
   isFavorite: z.boolean().optional(),
   completed: z.boolean().optional(),
   tags: z.array(z.string()).optional(),
+  ...pmsTaskFields,
+});
+
+// PMS: tags, milestones, work logs
+export const createTagSchema = z.object({
+  name: z.string().trim().min(1).max(30),
+  color: z.string().optional(),
+});
+export const createMilestoneSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  color: z.string().optional(),
+  dueDate: z.string().nullable().optional(),
+});
+export const updateMilestoneSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  color: z.string().optional(),
+  dueDate: z.string().nullable().optional(),
+  completed: z.boolean().optional(),
+});
+export const addWorklogSchema = z.object({
+  durationSeconds: z.number().int().min(1).max(86400),
+  note: z.string().max(500).optional(),
 });
 
 export const reorderTaskSchema = z.object({
@@ -153,8 +187,33 @@ export const createCommentSchema = z.object({
 export const startConversationSchema = z.object({
   userId: z.string().min(1),
 });
+export const createGroupSchema = z.object({
+  name: z.string().trim().min(1, "Group name is required").max(60),
+  userIds: z.array(z.string()).min(1, "Add at least one friend").max(30),
+});
+export const addMembersSchema = z.object({
+  userIds: z.array(z.string()).min(1).max(30),
+});
+export const updateConversationSchema = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
+  avatar: z.string().nullable().optional(),
+  disappearSeconds: z.number().int().min(0).max(2592000).nullable().optional(),
+});
+export const conversationSettingsSchema = z.object({
+  muted: z.boolean().optional(),
+  favorite: z.boolean().optional(),
+  clear: z.boolean().optional(),
+});
 export const sendMessageSchema = z.object({
+  content: z.string().max(4000).optional(),
+  attachments: z.array(z.string()).max(10).optional(),
+  replyToId: z.string().optional().nullable(),
+});
+export const editMessageSchema = z.object({
   content: z.string().trim().min(1, "Message cannot be empty").max(4000),
+});
+export const reactSchema = z.object({
+  emoji: z.string().min(1).max(12),
 });
 
 // Type exports

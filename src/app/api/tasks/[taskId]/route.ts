@@ -35,6 +35,7 @@ export async function GET(
         creator: { select: publicUserSelect },
         section: { select: { id: true, name: true } },
         project: { select: { id: true, name: true, color: true } },
+        milestone: { select: { id: true, name: true, color: true } },
         goal: { select: { id: true, title: true, progress: true } },
         subtasks: {
           where: { deletedAt: null },
@@ -68,7 +69,30 @@ export async function GET(
     if (!task || (task as { deletedAt?: Date | null }).deletedAt) {
       throw new HttpError(404, "Task not found");
     }
-    return NextResponse.json(task);
+
+    // Resolve managed tags, followers, and work-log total for the detail view.
+    const [resolvedTags, followers, worklog] = await Promise.all([
+      task.tagIds.length
+        ? prisma.tag.findMany({
+            where: { id: { in: task.tagIds } },
+            select: { id: true, name: true, color: true },
+          })
+        : Promise.resolve([]),
+      task.followerIds.length
+        ? prisma.user.findMany({
+            where: { id: { in: task.followerIds } },
+            select: publicUserSelect,
+          })
+        : Promise.resolve([]),
+      prisma.timeLog.aggregate({ where: { taskId }, _sum: { durationSeconds: true } }),
+    ]);
+
+    return NextResponse.json({
+      ...task,
+      resolvedTags,
+      followers,
+      worklogSeconds: worklog._sum.durationSeconds ?? 0,
+    });
   } catch (err) {
     return toErrorResponse(err);
   }
@@ -105,6 +129,18 @@ export async function PATCH(
     if (d.dueDate !== undefined) data.dueDate = d.dueDate ? new Date(d.dueDate) : null;
     if (d.startDate !== undefined)
       data.startDate = d.startDate ? new Date(d.startDate) : null;
+
+    // PMS fields
+    if (d.taskType !== undefined) data.taskType = d.taskType || null;
+    if (d.estimateMinutes !== undefined) data.estimateMinutes = d.estimateMinutes ?? null;
+    if (d.billable !== undefined) data.billable = d.billable;
+    if (d.milestoneId !== undefined) data.milestoneId = d.milestoneId || null;
+    if (d.tagIds !== undefined) data.tagIds = d.tagIds;
+    if (d.followerIds !== undefined) data.followerIds = d.followerIds;
+    if (d.plannedStart !== undefined)
+      data.plannedStart = d.plannedStart ? new Date(d.plannedStart) : null;
+    if (d.plannedEnd !== undefined)
+      data.plannedEnd = d.plannedEnd ? new Date(d.plannedEnd) : null;
 
     if (d.sectionId !== undefined) {
       const section = await prisma.section.findFirst({

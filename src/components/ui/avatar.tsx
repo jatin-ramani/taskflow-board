@@ -14,7 +14,7 @@ const sizeMap = {
 
 // Deterministic accent tint from a string, so avatars are stable per-user.
 const palette = [
-  "#7c5cff", "#4cb782", "#f2994a", "#eb5757",
+  "#5b5fc7", "#4cb782", "#f2994a", "#eb5757",
   "#56a8f5", "#bb6bd9", "#2d9cdb", "#27ae60",
 ];
 function colorFor(seed: string): string {

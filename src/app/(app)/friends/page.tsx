@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Users, Search, UserPlus, Check, X, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Users, Search, UserPlus, Check, X, Clock, MessageSquare } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { Avatar } from "@/components/ui/avatar";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
+import { onRealtime } from "@/components/layout/realtime";
 import type { FriendItem, FriendRequestItem, PublicUser } from "@/types";
 
 type SearchStatus = "none" | "friends" | "incoming" | "outgoing" | "blocked";
@@ -25,6 +27,7 @@ function handleOf(u: PublicUser) {
 
 export default function FriendsPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequestItem[]>([]);
@@ -52,6 +55,19 @@ export default function FriendsPage() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  // Live presence: flip a friend's online dot the moment they connect/disconnect.
+  useEffect(() => {
+    return onRealtime((p) => {
+      if (p.type === "presence" && p.userId) {
+        setFriends((prev) =>
+          prev.map((f) =>
+            f.user.id === p.userId ? { ...f, online: !!p.online } : f
+          )
+        );
+      }
+    });
+  }, []);
 
   const runSearch = useCallback(async (q: string) => {
     if (q.trim().length < 1) {
@@ -117,6 +133,20 @@ export default function FriendsPage() {
       }
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function message(userId: string) {
+    const res = await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (res.ok) {
+      const { id } = await res.json();
+      router.push(`/messages?c=${id}`);
+    } else {
+      toast("Could not open chat", "error");
     }
   }
 
@@ -276,6 +306,14 @@ export default function FriendsPage() {
                 ) : (
                   friends.map((f) => (
                     <Row key={f.friendshipId} user={f.user} online={f.online}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => message(f.user.id)}
+                      >
+                        <MessageSquare size={13} />
+                        <span className="hidden sm:inline"> Message</span>
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"

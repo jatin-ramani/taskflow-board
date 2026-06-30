@@ -1,26 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutGrid, List, Hash, Users } from "lucide-react";
+import { LayoutGrid, List, Hash, Users, CalendarDays, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FullSpinner } from "@/components/ui/spinner";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common/empty-state";
 import { KanbanBoard } from "@/components/board/kanban-board";
-import { ListView } from "@/components/project/list-view";
+import { PmsListView } from "@/components/project/pms-list-view";
+import { CalendarView } from "@/components/project/calendar-view";
+import { MilestonesView } from "@/components/project/milestones-view";
 import { TaskDetailPanel } from "@/components/task/task-detail-panel";
 import { MembersDialog } from "@/components/project/members-dialog";
 import { useToast } from "@/components/ui/toast";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
+import { MobileMenuButton } from "@/components/layout/app-shell";
 import type {
   ProjectDetailDTO,
   SectionDTO,
   TaskCardDTO,
+  TagDTO,
   PublicUser,
 } from "@/types";
 
-type View = "board" | "list";
+type View = "board" | "list" | "calendar" | "milestones";
 
 export function ProjectView({ projectId }: { projectId: string }) {
   const { toast } = useToast();
@@ -116,6 +120,24 @@ export function ProjectView({ projectId }: { projectId: string }) {
     }
   }
 
+  async function updateTask(taskId: string, patch: Record<string, unknown>) {
+    await fetch(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    load();
+  }
+
+  async function createTag(name: string): Promise<TagDTO | null> {
+    const res = await fetch(`/api/projects/${projectId}/tags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    return res.ok ? ((await res.json()) as TagDTO) : null;
+  }
+
   if (loading) return <FullSpinner label="Loading project…" />;
   if (notFound || !project) {
     return (
@@ -132,25 +154,26 @@ export function ProjectView({ projectId }: { projectId: string }) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-        <div className="flex items-center gap-2.5">
+      <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+          <MobileMenuButton className="-ml-1" />
           <span
-            className="flex h-5 w-5 items-center justify-center rounded"
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
             style={{ background: `${project.color}22` }}
           >
             <Hash size={12} style={{ color: project.color }} />
           </span>
-          <h1 className="text-sm font-semibold tracking-tight">{project.name}</h1>
-          <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] text-faint">
+          <h1 className="truncate text-sm font-semibold tracking-tight">{project.name}</h1>
+          <span className="hidden shrink-0 rounded-full bg-surface px-2 py-0.5 text-[11px] text-faint sm:inline">
             {sections.reduce((n, s) => n + s.tasks.length, 0)} tasks
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {/* Members — click to manage */}
           <button
             onClick={() => setMembersOpen(true)}
-            className="flex items-center gap-1.5 rounded-md py-1 pl-1 pr-2 transition-colors hover:bg-surface"
+            className="hidden items-center gap-1.5 rounded-md py-1 pl-1 pr-2 transition-colors hover:bg-surface sm:flex"
             aria-label="Members"
           >
             <div className="flex -space-x-1.5">
@@ -169,18 +192,29 @@ export function ProjectView({ projectId }: { projectId: string }) {
             )}
           </button>
 
-          {/* View toggle */}
+          {/* View tabs */}
           <div className="flex items-center rounded-md border border-border p-0.5">
-            <ViewButton active={view === "board"} onClick={() => setView("board")}>
-              <LayoutGrid size={14} /> Board
-            </ViewButton>
             <ViewButton active={view === "list"} onClick={() => setView("list")}>
-              <List size={14} /> List
+              <List size={14} />
+              <span className="hidden sm:inline"> List</span>
+            </ViewButton>
+            <ViewButton active={view === "board"} onClick={() => setView("board")}>
+              <LayoutGrid size={14} />
+              <span className="hidden sm:inline"> Board</span>
+            </ViewButton>
+            <ViewButton active={view === "calendar"} onClick={() => setView("calendar")}>
+              <CalendarDays size={14} />
+              <span className="hidden md:inline"> Calendar</span>
+            </ViewButton>
+            <ViewButton active={view === "milestones"} onClick={() => setView("milestones")}>
+              <Flag size={14} />
+              <span className="hidden md:inline"> Milestones</span>
             </ViewButton>
           </div>
 
           <Button size="sm" variant="secondary" onClick={() => setMembersOpen(true)}>
-            <Users size={14} /> Share
+            <Users size={14} />
+            <span className="hidden sm:inline"> Share</span>
           </Button>
         </div>
       </header>
@@ -197,9 +231,11 @@ export function ProjectView({ projectId }: { projectId: string }) {
 
       {/* Body */}
       <div className="min-h-0 flex-1">
-        {view === "board" ? (
+        {view === "board" && (
           <KanbanBoard
             sections={sections}
+            tags={project.tags}
+            milestones={project.milestones}
             onSectionsChange={setSections}
             onPersistOrder={persistOrder}
             onTaskClick={setSelectedTaskId}
@@ -208,13 +244,31 @@ export function ProjectView({ projectId }: { projectId: string }) {
             onAddSection={addSection}
             canEdit={canEdit}
           />
-        ) : (
-          <ListView
+        )}
+        {view === "list" && (
+          <PmsListView
             sections={sections}
+            milestones={project.milestones}
+            tags={project.tags}
+            members={assignable}
+            canEdit={canEdit}
             onTaskClick={setSelectedTaskId}
             onToggleComplete={toggleComplete}
             onQuickAdd={quickAdd}
+            onUpdate={updateTask}
+            onCreateTag={createTag}
+          />
+        )}
+        {view === "calendar" && (
+          <CalendarView sections={sections} onTaskClick={setSelectedTaskId} />
+        )}
+        {view === "milestones" && (
+          <MilestonesView
+            milestones={project.milestones}
+            sections={sections}
             canEdit={canEdit}
+            projectId={projectId}
+            onChanged={load}
           />
         )}
       </div>
@@ -223,7 +277,11 @@ export function ProjectView({ projectId }: { projectId: string }) {
         <TaskDetailPanel
           taskId={selectedTaskId}
           members={assignable}
+          sections={sections.map((s) => ({ id: s.id, name: s.name }))}
+          milestones={project.milestones}
+          tags={project.tags}
           canEdit={canEdit}
+          onCreateTag={createTag}
           onClose={() => setSelectedTaskId(null)}
           onChanged={() => {
             load();

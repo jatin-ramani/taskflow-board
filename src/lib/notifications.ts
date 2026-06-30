@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { publishToUser } from "@/lib/realtime";
 import type { NotificationType } from "@prisma/client";
 
 export interface NotificationInput {
@@ -16,7 +17,7 @@ export interface NotificationInput {
  * Phase 7 will also push the created notification over the SSE bus from here.
  */
 export async function createNotification(input: NotificationInput) {
-  return prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       recipientId: input.recipientId,
       actorId: input.actorId ?? null,
@@ -27,4 +28,6 @@ export async function createNotification(input: NotificationInput) {
       entityId: input.entityId ?? null,
     },
   });
+  publishToUser(input.recipientId, { type: "notification" });
+  return notification;
 }

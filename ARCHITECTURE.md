@@ -72,14 +72,23 @@ See `prisma/schema.prisma` for the authoritative source. Entities:
 - `GET /api/notifications` · `POST /api/notifications/read`
 - `GET /api/stream` (SSE)
 
-## Build roadmap
+## Build roadmap & progress
 
-- **Phase 0 — Reset & foundation:** remove old schema/routes/components, write new Prisma schema, `db push` + generate, design tokens + base Linear-style UI kit.
-- **Phase 1 — Identity:** register (publicId + username), login, profile, presence.
-- **Phase 2 — Social graph:** user search, friend requests, accept/decline, notifications.
-- **Phase 3 — Work core:** projects, sections, tasks, board (DnD) + list views, personal space, server-side RBAC.
-- **Phase 4 — Sharing:** invite friends to projects, roles, shared task visibility.
-- **Phase 5 — Goals:** goal CRUD + progress rollup + view.
-- **Phase 6 — Chat:** conversations, messages, unread counts.
-- **Phase 7 — Real-time:** SSE for notifications + chat + presence.
-- **Phase 8 — Polish & QA:** redesign pass, edge cases, 0-bug hardening.
+- ✅ **Phase 0 — Reset & foundation:** new Prisma schema, design tokens, Linear-style UI kit, authz/validation/id helpers.
+- ✅ **Phase 1 — Identity:** register (publicId + Personal project), login, NextAuth session, dashboard.
+- ✅ **Phase 2 — Social graph:** user search, friend requests, accept/decline, notifications, app shell (sidebar/inbox/toasts).
+- ✅ **Phase 3 — Work core:** projects, sections, tasks, board (DnD) + list views, task detail panel, My Tasks, server-side RBAC.
+- ✅ **Phase 4 — Sharing:** add friends to projects with roles (Admin/Editor/Viewer), Members dialog, role enforcement, shared visibility.
+- ✅ **Phase 5 — Goals:** goal CRUD, progress rollup from linked tasks, goals page + detail dialog, task↔goal linking.
+- ✅ **Phase 6 — Chat:** 1-on-1 conversations (find-or-create by pairKey), message history, unread counts, Messages two-pane UI.
+- ✅ **Phase 7 — Real-time:** SSE bus (`lib/realtime.ts`) + `/api/stream`; live messages, notifications, and presence (online/last-seen). Free, in-process.
+- ⬜ **Phase 8 — Polish & QA:** edge cases, 0-bug hardening. **← core app feature-complete; only polish remains**
+
+## Resume notes (core app complete through Phase 7)
+
+- **Demo accounts** (password `password123`): `alice@test.com` (has 2 seeded projects, 11 tasks, 1 goal), `bob@test.com` (friends with Alice). Use both to test friends/sharing/chat.
+- **Dev server:** `npm run dev` then http://localhost:3000. **Never run `next build` while dev runs** (corrupts dev CSS cache) — verify with `npx tsc --noEmit` instead. After CSS changes, hard-refresh (Ctrl+Shift+R).
+- **Design:** dark warm palette, violet accent (#7c5cff). Base reset lives in `@layer base` (must stay there or it overrides Tailwind utilities).
+- **MongoDB null rule:** write nullable filter-fields (`deletedAt`, `completedAt`, `parentTaskId`) as explicit `null` on create.
+- **Real-time:** one SSE connection per client via `<Realtime/>` (mounted in `(app)/layout`). Server bus is `lib/realtime.ts` (in-process, pinned to globalThis). Publishers: `createNotification` and the message POST route call `publishToUser`. Client re-broadcasts as the `taskflow:realtime` window event; subscribe with `onRealtime(...)`. Pages keep a slow fallback poll behind SSE.
+- **Next: Phase 8 (optional polish).** Core app is feature-complete. Possible: profile/avatar editing (Cloudinary already wired), @username editing, mentions autocomplete in comments, project settings (rename/delete/color), keyboard shortcuts, mobile responsiveness pass, empty-state polish.

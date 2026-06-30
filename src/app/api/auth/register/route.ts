@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
           create: {
             name: "Personal",
             isPersonal: true,
-            color: "#7c5cff",
+            color: "#5b5fc7",
             icon: "user",
             sections: {
               create: [

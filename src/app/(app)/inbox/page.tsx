@@ -21,18 +21,19 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
+import { onRealtime } from "@/components/layout/realtime";
 import { cn, timeAgo } from "@/lib/utils";
 import type { NotificationItem } from "@/types";
 
 const typeMeta: Record<string, { icon: React.ReactNode; color: string }> = {
-  FRIEND_REQUEST: { icon: <UserPlus size={14} />, color: "#7c5cff" },
+  FRIEND_REQUEST: { icon: <UserPlus size={14} />, color: "#5b5fc7" },
   FRIEND_ACCEPTED: { icon: <UserCheck size={14} />, color: "#4cb782" },
-  PROJECT_INVITE: { icon: <FolderPlus size={14} />, color: "#7c5cff" },
+  PROJECT_INVITE: { icon: <FolderPlus size={14} />, color: "#5b5fc7" },
   TASK_ASSIGNED: { icon: <CheckSquare size={14} />, color: "#56a8f5" },
   TASK_COMMENT: { icon: <MessageSquare size={14} />, color: "#a1a5ad" },
   TASK_MENTION: { icon: <AtSign size={14} />, color: "#f2994a" },
   TASK_DUE: { icon: <Clock size={14} />, color: "#eb5757" },
-  NEW_MESSAGE: { icon: <MessageSquare size={14} />, color: "#7c5cff" },
+  NEW_MESSAGE: { icon: <MessageSquare size={14} />, color: "#5b5fc7" },
 };
 
 export default function InboxPage() {
@@ -53,6 +54,16 @@ export default function InboxPage() {
       await fetch("/api/notifications/read", { method: "POST" });
       refreshSidebar();
     })();
+  }, [load]);
+
+  // New notifications arrive live; refresh and keep the open inbox read.
+  useEffect(() => {
+    return onRealtime(async (p) => {
+      if (p.type !== "notification") return;
+      await load();
+      await fetch("/api/notifications/read", { method: "POST" });
+      refreshSidebar();
+    });
   }, [load]);
 
   async function markAllRead() {

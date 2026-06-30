@@ -34,6 +34,21 @@ export interface ProjectSummary {
   memberCount: number;
 }
 
+export interface TagDTO {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface MilestoneDTO {
+  id: string;
+  name: string;
+  color: string;
+  dueDate: string | null;
+  completed: boolean;
+  taskCount?: number;
+}
+
 export interface TaskCardDTO {
   id: string;
   title: string;
@@ -47,6 +62,15 @@ export interface TaskCardDTO {
   sectionId: string;
   projectId: string;
   goalId: string | null;
+  taskType: string | null;
+  estimateMinutes: number | null;
+  billable: boolean;
+  milestoneId: string | null;
+  tagIds: string[];
+  followerIds: string[];
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  worklogSeconds?: number;
   assignee: PublicUser | null;
   _count: { subtasks: number; comments: number };
 }
@@ -75,6 +99,8 @@ export interface ProjectDetailDTO {
   owner: PublicUser;
   members: ProjectMemberDTO[];
   sections: SectionDTO[];
+  milestones: MilestoneDTO[];
+  tags: TagDTO[];
   role: ProjectRole;
 }
 
@@ -82,6 +108,68 @@ export interface ProjectDetailDTO {
 export interface MyTaskDTO extends TaskCardDTO {
   section: { id: string; name: string };
   project: { id: string; name: string; color: string };
+}
+
+export interface ConversationDTO {
+  id: string;
+  isGroup: boolean;
+  title: string;
+  image: string | null; // group icon
+  avatarUsers: PublicUser[]; // DM: [other]; group: members
+  memberCount: number;
+  lastMessage: {
+    content: string;
+    createdAt: string;
+    isMine: boolean;
+    senderName: string | null;
+  } | null;
+  lastMessageAt: string;
+  unreadCount: number;
+  online: boolean; // DM only
+  muted: boolean;
+  favorite: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  username: string | null;
+  avatar: string | null;
+  publicId: string;
+  bio: string | null;
+  online: boolean;
+  isFriend: boolean;
+}
+
+export type MemberPresence = PublicUser & { online: boolean };
+
+export interface ConversationMeta {
+  id: string;
+  isGroup: boolean;
+  title: string;
+  image: string | null;
+  members: MemberPresence[];
+  online: boolean;
+  pinned: { id: string; content: string; senderName: string } | null;
+  disappearSeconds: number | null;
+}
+
+export interface MessageReplyPreview {
+  id: string;
+  content: string;
+  senderName: string;
+}
+
+export interface MessageDTO {
+  id: string;
+  content: string;
+  senderId: string;
+  sender: PublicUser;
+  attachments: string[];
+  reactions: Record<string, string[]>;
+  replyTo: MessageReplyPreview | null;
+  createdAt: string;
+  editedAt: string | null;
 }
 
 export interface GoalDTO {
@@ -125,10 +213,23 @@ export interface TaskDetailDTO extends TaskCardDTO {
   creator: PublicUser;
   section: { id: string; name: string };
   project: { id: string; name: string; color: string };
+  milestone: { id: string; name: string; color: string } | null;
   goal: { id: string; title: string; progress: number } | null;
+  resolvedTags: TagDTO[];
+  followers: PublicUser[];
+  worklogSeconds: number;
   subtasks: TaskCardDTO[];
   comments: CommentDTO[];
   activities: TaskActivityDTO[];
+}
+
+export interface WorklogEntry {
+  id: string;
+  durationSeconds: number;
+  note: string | null;
+  startedAt: string;
+  createdAt: string;
+  user: PublicUser;
 }
 
 export interface DashboardStats {
