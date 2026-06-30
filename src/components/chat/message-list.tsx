@@ -11,6 +11,7 @@ import {
   Reply,
   Pin,
   PinOff,
+  Ghost,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -30,6 +31,7 @@ export function MessageList({
   meId,
   isGroup,
   pinnedId,
+  vanish = false,
   onReact,
   onEdit,
   onDelete,
@@ -41,6 +43,7 @@ export function MessageList({
   meId: string;
   isGroup: boolean;
   pinnedId?: string | null;
+  vanish?: boolean;
   onReact: (id: string, emoji: string) => void;
   onEdit: (id: string, content: string) => void;
   onDelete: (id: string) => void;
@@ -59,6 +62,25 @@ export function MessageList({
     <div className="flex flex-col gap-0.5">
       {messages.map((m, i) => {
         const date = new Date(m.createdAt);
+
+        // System note (vanish on/off): centered divider, doubles as separator + history.
+        if (m.system) {
+          return (
+            <div key={m.id} className="my-3 flex items-center gap-3">
+              <div className={cn("h-px flex-1", vanish ? "bg-white/15" : "bg-border")} />
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
+                  vanish ? "bg-white/10 text-white/75" : "bg-surface text-muted"
+                )}
+              >
+                <Ghost size={12} /> {m.sender.name} {m.content}
+              </span>
+              <div className={cn("h-px flex-1", vanish ? "bg-white/15" : "bg-border")} />
+            </div>
+          );
+        }
+
         const prev = messages[i - 1];
         const mine = m.senderId === meId;
         const showDay = dayLabel(date) !== lastDay;
@@ -75,20 +97,24 @@ export function MessageList({
         );
         const editing = editingId === m.id;
         const isPinned = pinnedId === m.id;
+        const imageOnly =
+          !m.content && !m.replyTo && !isPinned && m.attachments.length > 0;
 
         return (
           <div key={m.id}>
             {showDay && (
               <div className="my-3 flex items-center gap-3">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-[11px] font-medium text-faint">{dayLabel(date)}</span>
-                <div className="h-px flex-1 bg-border" />
+                <div className={cn("h-px flex-1", vanish ? "bg-white/15" : "bg-border")} />
+                <span className={cn("text-[11px] font-medium", vanish ? "text-white/60" : "text-faint")}>
+                  {dayLabel(date)}
+                </span>
+                <div className={cn("h-px flex-1", vanish ? "bg-white/15" : "bg-border")} />
               </div>
             )}
 
             <div
               className={cn(
-                "group flex gap-2.5",
+                "flex gap-2.5",
                 mine ? "flex-row-reverse" : "flex-row",
                 grouped ? "mt-0.5" : "mt-2"
               )}
@@ -99,7 +125,7 @@ export function MessageList({
                 ) : (
                   <button
                     onClick={() => onOpenProfile?.(m.senderId)}
-                    className="shrink-0 self-end rounded-full"
+                    className="mt-5 shrink-0 self-start rounded-full"
                   >
                     <Avatar name={m.sender.name} src={m.sender.avatar} size="sm" />
                   </button>
@@ -109,13 +135,17 @@ export function MessageList({
                 {!grouped && (
                   <div className={cn("mb-0.5 flex items-baseline gap-2", mine && "flex-row-reverse")}>
                     {!mine && isGroup && (
-                      <span className="text-[12px] font-semibold">{m.sender.name}</span>
+                      <span className={cn("text-[12px] font-semibold", vanish && "text-white/85")}>
+                        {m.sender.name}
+                      </span>
                     )}
-                    <span className="text-[10px] text-faint">{format(date, "h:mm a")}</span>
+                    <span className={cn("text-[10px]", vanish ? "text-white/40" : "text-faint")}>
+                      {format(date, "h:mm a")}
+                    </span>
                   </div>
                 )}
 
-                <div className="relative w-fit">
+                <div className="group relative w-fit">
                   {editing ? (
                     <div className="min-w-[220px] rounded-md border border-accent bg-elevated p-2">
                       <textarea
@@ -146,8 +176,9 @@ export function MessageList({
                   ) : (
                     <div
                       className={cn(
-                        "rounded-md px-3 py-1.5 text-[13px] leading-relaxed",
-                        mine ? "bg-msg-mine text-msg-mine-fg" : "bg-surface text-text"
+                        "w-fit max-w-full overflow-hidden rounded-lg text-[13px] leading-relaxed",
+                        !imageOnly && "px-3 py-1.5",
+                        !imageOnly && (mine ? "bg-msg-mine text-msg-mine-fg" : "bg-surface text-text")
                       )}
                     >
                       {isPinned && (
@@ -163,20 +194,25 @@ export function MessageList({
                       )}
                       {m.content && (
                         <div
-                          className="chat-md whitespace-pre-wrap break-words"
+                          className="chat-md whitespace-pre-wrap"
                           dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
                         />
                       )}
-                      {m.attachments.map((url) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={url}
-                          src={url}
-                          alt="attachment"
-                          onClick={() => setLightbox(allImages.indexOf(url))}
-                          className="mt-1 max-h-60 cursor-pointer rounded border border-black/10"
-                        />
-                      ))}
+                      <div className={cn("flex flex-col gap-1", m.content && "mt-1.5")}>
+                        {m.attachments.map((url) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={url}
+                            src={url}
+                            alt="attachment"
+                            onClick={() => setLightbox(allImages.indexOf(url))}
+                            className={cn(
+                              "block max-h-72 max-w-full cursor-pointer rounded-lg object-cover",
+                              !imageOnly && "border border-black/10"
+                            )}
+                          />
+                        ))}
+                      </div>
                       {m.editedAt && (
                         <span className={cn("ml-1.5 text-[10px]", mine ? "opacity-60" : "text-faint")}>
                           (edited)
@@ -185,9 +221,11 @@ export function MessageList({
                     </div>
                   )}
 
-                  {/* Floating action bar */}
+                  {/* Floating action bar — sits above the bubble; the pb bridge
+                      keeps it hoverable without overlapping the message. */}
                   {!editing && (
-                    <div className="absolute -top-3.5 right-0 z-20 flex items-center gap-0.5 rounded-md border border-border bg-overlay p-0.5 opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+                    <div className="absolute bottom-full right-0 z-20 pb-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <div className="flex items-center gap-0.5 rounded-md border border-border bg-overlay p-0.5 shadow-md">
                       {QUICK_REACTIONS.slice(0, 4).map((e) => (
                         <button
                           key={e}
@@ -236,6 +274,7 @@ export function MessageList({
                           </button>
                         </>
                       )}
+                      </div>
                     </div>
                   )}
                 </div>

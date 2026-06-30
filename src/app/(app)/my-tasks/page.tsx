@@ -21,6 +21,24 @@ export default function MyTasksPage() {
   const [tasks, setTasks] = useState<MyTaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ total: number; active: number; completed: number; overdue: number } | null>(null);
+
+  const loadStats = useCallback(async () => {
+    const res = await fetch("/api/tasks?scope=mine");
+    if (!res.ok) return;
+    const all: MyTaskDTO[] = await res.json();
+    const now = new Date();
+    setStats({
+      total: all.length,
+      active: all.filter((t) => !t.completedAt).length,
+      completed: all.filter((t) => t.completedAt).length,
+      overdue: all.filter((t) => !t.completedAt && t.dueDate && new Date(t.dueDate) < now).length,
+    });
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   const me: PublicUser | null = session?.user
     ? {
@@ -58,6 +76,7 @@ export default function MyTasksPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed }),
     });
+    loadStats();
     if (filter !== "all") setTimeout(load, 200);
   }
 
@@ -85,7 +104,17 @@ export default function MyTasksPage() {
       />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 py-6">
+        <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
+          {/* KPI strip */}
+          {stats && (
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <MiniStat label="Total" value={stats.total} color="#4f9dff" />
+              <MiniStat label="Active" value={stats.active} color="#f5a623" />
+              <MiniStat label="Completed" value={stats.completed} color="#22c55e" />
+              <MiniStat label="Overdue" value={stats.overdue} color="#ef4444" />
+            </div>
+          )}
+
           {loading ? (
             <FullSpinner />
           ) : tasks.length === 0 ? (
@@ -155,10 +184,26 @@ export default function MyTasksPage() {
           onClose={() => setSelectedTaskId(null)}
           onChanged={() => {
             load();
+            loadStats();
             refreshSidebar();
           }}
         />
       )}
     </>
+  );
+}
+
+function MiniStat({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-lg border border-border bg-elevated p-3 shadow-sm"
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      <span className="h-9 w-1 rounded-full" style={{ background: color }} />
+      <div>
+        <p className="text-[20px] font-bold leading-none">{value}</p>
+        <p className="mt-1 text-[11px] text-muted">{label}</p>
+      </div>
+    </div>
   );
 }

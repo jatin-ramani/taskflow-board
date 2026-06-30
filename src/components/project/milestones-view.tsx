@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { EmptyState } from "@/components/common/empty-state";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import type { SectionDTO, MilestoneDTO } from "@/types";
 
@@ -29,6 +30,7 @@ export function MilestonesView({
 }) {
   const { toast } = useToast();
   const [dialog, setDialog] = useState<{ mode: "create" | "edit"; ms?: MilestoneDTO } | null>(null);
+  const [confirmDel, setConfirmDel] = useState<MilestoneDTO | null>(null);
   const allTasks = sections.flatMap((s) => s.tasks);
 
   function counts(id: string) {
@@ -47,7 +49,6 @@ export function MilestonesView({
   }
 
   async function remove(m: MilestoneDTO) {
-    if (!confirm(`Delete milestone "${m.name}"?`)) return;
     await fetch(`/api/milestones/${m.id}`, { method: "DELETE" });
     toast("Milestone deleted", "success");
     onChanged();
@@ -98,7 +99,7 @@ export function MilestonesView({
                     {canEdit && (
                       <RowMenu
                         onEdit={() => setDialog({ mode: "edit", ms: m })}
-                        onDelete={() => remove(m)}
+                        onDelete={() => setConfirmDel(m)}
                         onToggle={() => toggleComplete(m)}
                         completed={m.completed}
                       />
@@ -136,6 +137,22 @@ export function MilestonesView({
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmDel}
+        onOpenChange={(o) => !o && setConfirmDel(null)}
+        title="Delete milestone?"
+        description={
+          confirmDel
+            ? `"${confirmDel.name}" will be removed. Tasks stay, but lose this milestone.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => {
+          if (confirmDel) remove(confirmDel);
+        }}
+      />
     </div>
   );
 }

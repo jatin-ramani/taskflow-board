@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Search, UserPlus, Check, X, Clock, MessageSquare } from "lucide-react";
+import { Users, Search, UserPlus, Check, X, Clock, MessageSquare, Circle } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
 import { onRealtime } from "@/components/layout/realtime";
@@ -37,6 +38,7 @@ export default function FriendsPage() {
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
 
   const loadAll = useCallback(async () => {
     const [fRes, rRes] = await Promise.all([
@@ -163,6 +165,8 @@ export default function FriendsPage() {
     }
   }
 
+  const onlineCount = friends.filter((f) => f.online).length;
+
   return (
     <>
       <PageHeader
@@ -176,7 +180,15 @@ export default function FriendsPage() {
       />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl px-6 py-6">
+        <div className="px-4 py-5 sm:px-6">
+          {/* Stats */}
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="Friends" value={friends.length} icon={<Users size={15} />} color="#4f9dff" />
+            <Stat label="Online now" value={onlineCount} icon={<Circle size={15} />} color="#22c55e" />
+            <Stat label="Requests" value={incoming.length} icon={<UserPlus size={15} />} color="#f5a623" />
+            <Stat label="Sent" value={outgoing.length} icon={<Clock size={15} />} color="#a855f7" />
+          </div>
+
           {/* Add friend */}
           <section className="rounded-xl border border-border bg-elevated p-4">
             <h2 className="text-[13px] font-semibold">Add a friend</h2>
@@ -296,7 +308,10 @@ export default function FriendsPage() {
                 </Card>
               )}
 
-              <Card title="All friends" count={friends.length}>
+              <section className="mt-5">
+                <h2 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
+                  All friends <span className="text-faint">{friends.length}</span>
+                </h2>
                 {friends.length === 0 ? (
                   <EmptyState
                     icon={<Users size={20} />}
@@ -304,33 +319,98 @@ export default function FriendsPage() {
                     description="Search above to add your first friend by their code."
                   />
                 ) : (
-                  friends.map((f) => (
-                    <Row key={f.friendshipId} user={f.user} online={f.online}>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => message(f.user.id)}
-                      >
-                        <MessageSquare size={13} />
-                        <span className="hidden sm:inline"> Message</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => remove(f.friendshipId, "Removed friend")}
-                        disabled={busyId === f.friendshipId}
-                      >
-                        Remove
-                      </Button>
-                    </Row>
-                  ))
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {friends.map((f) => (
+                      <FriendCard
+                        key={f.friendshipId}
+                        friend={f}
+                        busy={busyId === f.friendshipId}
+                        onMessage={() => message(f.user.id)}
+                        onRemove={() => setConfirmRemove({ id: f.friendshipId, name: f.user.name })}
+                      />
+                    ))}
+                  </div>
                 )}
-              </Card>
+              </section>
             </>
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmRemove}
+        onOpenChange={(o) => !o && setConfirmRemove(null)}
+        title="Remove friend?"
+        description={
+          confirmRemove
+            ? `${confirmRemove.name} will be removed from your friends. You can add them again later.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        danger
+        onConfirm={() => {
+          if (confirmRemove) remove(confirmRemove.id, "Removed friend");
+        }}
+      />
     </>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-lg border border-border bg-elevated p-3 shadow-sm"
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: `${color}1a`, color }}>
+        {icon}
+      </span>
+      <div>
+        <p className="text-[18px] font-bold leading-none">{value}</p>
+        <p className="mt-0.5 text-[11px] text-muted">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function FriendCard({
+  friend,
+  busy,
+  onMessage,
+  onRemove,
+}: {
+  friend: FriendItem;
+  busy: boolean;
+  onMessage: () => void;
+  onRemove: () => void;
+}) {
+  const u = friend.user;
+  return (
+    <div className="flex flex-col items-center rounded-lg border border-border bg-elevated p-4 text-center shadow-sm transition-shadow hover:shadow-md">
+      <Avatar name={u.name} src={u.avatar} size="xl" online={friend.online} />
+      <p className="mt-2 w-full truncate text-[13px] font-semibold">{u.name}</p>
+      <p className="w-full truncate text-[11px] text-faint">
+        {u.username ? `@${u.username}` : u.publicId}
+      </p>
+      <div className="mt-3 flex w-full gap-2">
+        <Button size="sm" className="flex-1" onClick={onMessage}>
+          <MessageSquare size={13} /> Message
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onRemove} disabled={busy} aria-label="Remove">
+          <X size={13} />
+        </Button>
+      </div>
+    </div>
   );
 }
 

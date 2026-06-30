@@ -23,6 +23,13 @@ interface Me {
   bio: string | null;
   publicId: string;
   createdAt: string;
+  stats?: {
+    projects: number;
+    tasksDone: number;
+    tasksOpen: number;
+    friends: number;
+    goals: number;
+  };
 }
 
 export default function ProfilePage() {
@@ -121,34 +128,50 @@ export default function ProfilePage() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
-          {/* Avatar + identity */}
-          <section className="flex flex-col items-center gap-4 rounded-xl border border-border bg-elevated p-6 sm:flex-row sm:items-center sm:gap-5">
-            <div className="relative">
-              <Avatar name={me.name} src={me.avatar} size="xl" />
-              <button
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-overlay text-muted shadow-sm transition-colors hover:text-text"
-                aria-label="Change photo"
-              >
-                {uploading ? <Spinner size={13} /> : <Camera size={14} />}
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onPickAvatar}
-              />
-            </div>
-            <div className="min-w-0 text-center sm:text-left">
-              <p className="text-lg font-semibold">{me.name}</p>
-              <p className="text-[13px] text-muted">
-                {me.username ? `@${me.username}` : me.email}
-              </p>
-              <p className="mt-1 text-[12px] text-faint">
-                Member since {format(new Date(me.createdAt), "MMMM yyyy")}
-              </p>
+          {/* Identity card with cover banner */}
+          <section className="overflow-hidden rounded-xl border border-border bg-elevated">
+            <div className="h-24 bg-linear-to-r from-accent via-accent to-[#7174d4] sm:h-28" />
+            <div className="px-5 pb-5 sm:px-6">
+              <div className="-mt-10 flex flex-col gap-3 sm:-mt-12 sm:flex-row sm:items-end sm:gap-5">
+                <div className="relative shrink-0">
+                  <div className="rounded-full ring-4 ring-elevated">
+                    <Avatar name={me.name} src={me.avatar} size="xl" />
+                  </div>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-overlay text-muted shadow-sm transition-colors hover:text-text"
+                    aria-label="Change photo"
+                  >
+                    {uploading ? <Spinner size={13} /> : <Camera size={14} />}
+                  </button>
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickAvatar} />
+                </div>
+                <div className="min-w-0 flex-1 pb-1">
+                  <p className="text-xl font-semibold">{me.name}</p>
+                  <p className="text-[13px] text-muted">
+                    {me.username ? `@${me.username}` : me.email}
+                  </p>
+                </div>
+                <p className="hidden text-[12px] text-faint sm:block sm:pb-1">
+                  Member since {format(new Date(me.createdAt), "MMM yyyy")}
+                </p>
+              </div>
+
+              {me.bio && (
+                <p className="mt-3 text-[13px] leading-relaxed text-muted">{me.bio}</p>
+              )}
+
+              {/* Stats strip */}
+              {me.stats && (
+                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-4 sm:grid-cols-5">
+                  <Stat label="Projects" value={me.stats.projects} />
+                  <Stat label="Open" value={me.stats.tasksOpen} />
+                  <Stat label="Completed" value={me.stats.tasksDone} />
+                  <Stat label="Friends" value={me.stats.friends} />
+                  <Stat label="Goals" value={me.stats.goals} />
+                </div>
+              )}
             </div>
           </section>
 
@@ -230,6 +253,15 @@ export default function ProfilePage() {
         </div>
       </div>
     </>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="text-center sm:text-left">
+      <p className="text-[18px] font-semibold leading-none">{value}</p>
+      <p className="mt-1 text-[11px] uppercase tracking-wide text-faint">{label}</p>
+    </div>
   );
 }
 

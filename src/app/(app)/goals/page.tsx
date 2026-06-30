@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { FullSpinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -34,6 +35,12 @@ export default function GoalsPage() {
     load();
   }, [load]);
 
+  const completedCount = goals.filter((g) => g.status === "ACHIEVED").length;
+  const activeCount = goals.filter((g) => g.status === "ACTIVE").length;
+  const avgProgress = goals.length
+    ? Math.round(goals.reduce((n, g) => n + g.progress, 0) / goals.length)
+    : 0;
+
   return (
     <>
       <PageHeader
@@ -47,7 +54,16 @@ export default function GoalsPage() {
       />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-6 py-6">
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
+          {!loading && goals.length > 0 && (
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <GStat label="Total goals" value={goals.length} color="#4f9dff" />
+              <GStat label="Active" value={activeCount} color="#f5a623" />
+              <GStat label="Completed" value={completedCount} color="#22c55e" />
+              <GStat label="Avg progress" value={`${avgProgress}%`} color="#a855f7" />
+            </div>
+          )}
+
           {loading ? (
             <FullSpinner />
           ) : goals.length === 0 ? (
@@ -62,7 +78,7 @@ export default function GoalsPage() {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {goals.map((g) => (
                 <GoalCard key={g.id} goal={g} onClick={() => setSelectedGoalId(g.id)} />
               ))}
@@ -88,6 +104,18 @@ export default function GoalsPage() {
         onChanged={load}
       />
     </>
+  );
+}
+
+function GStat({ label, value, color }: { label: string; value: number | string; color: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-elevated p-3 shadow-sm" style={{ borderLeft: `3px solid ${color}` }}>
+      <span className="h-9 w-1 rounded-full" style={{ background: color }} />
+      <div>
+        <p className="text-[20px] font-bold leading-none">{value}</p>
+        <p className="mt-1 text-[11px] text-muted">{label}</p>
+      </div>
+    </div>
   );
 }
 
@@ -219,18 +247,19 @@ function CreateGoalDialog({
             </label>
             <label className="flex flex-1 flex-col gap-1 text-[12px] text-muted">
               Project
-              <select
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-                className="h-9 rounded-md border border-border bg-elevated px-2.5 text-sm outline-none focus:border-accent"
-              >
-                <option value="">None</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              <div className="h-9 rounded-md border border-border bg-elevated">
+                <Select
+                  value={projectId}
+                  placeholder="None"
+                  searchable
+                  className="h-9"
+                  onChange={setProjectId}
+                  options={[
+                    { value: "", label: "None" },
+                    ...projects.map((p) => ({ value: p.id, label: p.name })),
+                  ]}
+                />
+              </div>
             </label>
           </div>
           <div className="mt-1 flex justify-end gap-2">

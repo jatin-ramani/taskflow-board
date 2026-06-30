@@ -13,14 +13,34 @@ import {
   Clock,
   History,
   MessageSquare,
-  ListTree,
   Tag as TagIcon,
+  CircleDot,
+  User2,
+  Flag,
+  Shapes,
+  Milestone as MilestoneIcon,
+  Tags,
+  Timer,
+  CalendarDays,
+  CalendarClock,
+  DollarSign,
+  Users,
+  Target,
 } from "lucide-react";
+import { Select } from "@/components/ui/select";
+import {
+  useRunningTimer,
+  useElapsed,
+  startTimer,
+  stopAndLogTimer,
+  isInProgress,
+} from "@/lib/timer";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { PRIORITY_META, PRIORITY_ORDER } from "@/lib/task-meta";
 import type {
@@ -44,10 +64,10 @@ interface Props {
   onCreateTag?: (name: string) => Promise<TagDTO | null>;
 }
 
-type Tab = "subtasks" | "comments" | "activity" | "worklog";
+type Tab = "comments" | "activity" | "worklog";
 
-const selectCls =
-  "h-8 min-w-[150px] rounded-md border border-border bg-surface px-2.5 text-[13px] text-text outline-none transition-colors focus:border-accent disabled:opacity-60";
+const fieldInputCls =
+  "h-8 w-full rounded-md border border-transparent bg-transparent px-2 text-[13px] outline-none transition-colors hover:border-border hover:bg-surface focus:border-accent focus:bg-surface placeholder:text-faint disabled:opacity-70";
 
 function hms(s: number) {
   const h = Math.floor(s / 3600);
@@ -81,13 +101,14 @@ export function TaskDetailPanel({
   const [comment, setComment] = useState("");
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [goals, setGoals] = useState<{ id: string; title: string }[]>([]);
-  const [tab, setTab] = useState<Tab>("subtasks");
+  const [tab, setTab] = useState<Tab>("activity");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Work log
+  // Work log — driven by the global, strict timer (no manual logging).
   const [logs, setLogs] = useState<WorklogEntry[]>([]);
-  const [running, setRunning] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const startRef = useRef<number | null>(null);
+  const runningTimer = useRunningTimer();
+  const isThisRunning = runningTimer?.taskId === taskId;
+  const elapsed = useElapsed(isThisRunning ? runningTimer!.startedAt : null);
 
   useEffect(() => {
     fetch("/api/goals")
@@ -125,15 +146,6 @@ export function TaskDetailPanel({
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
-
-  useEffect(() => {
-    if (!running) return;
-    const id = setInterval(() => {
-      if (startRef.current != null)
-        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [running]);
 
   async function patch(data: Record<string, unknown>) {
     const res = await fetch(`/api/tasks/${taskId}`, {
@@ -195,7 +207,6 @@ export function TaskDetailPanel({
   }
 
   async function deleteTask() {
-    if (!confirm("Delete this task?")) return;
     const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
     if (res.ok) {
       toast("Task deleted", "success");
@@ -204,39 +215,25 @@ export function TaskDetailPanel({
     }
   }
 
-  async function logTime(seconds: number, note?: string) {
-    if (seconds < 1) return;
-    const res = await fetch(`/api/tasks/${taskId}/time`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ durationSeconds: seconds, note: note || undefined }),
-    });
-    if (res.ok) {
-      await Promise.all([loadLogs(), load()]);
-      onChanged();
-    } else {
-      toast("Could not log time", "error");
-    }
+  function beginTimer() {
+    if (!task) return;
+    startTimer({ taskId, projectId: task.projectId, title: task.title });
   }
-
-  function startTimer() {
-    startRef.current = Date.now() - elapsed * 1000;
-    setRunning(true);
-  }
-  async function stopTimer() {
-    setRunning(false);
-    const secs = elapsed;
-    setElapsed(0);
-    startRef.current = null;
-    await logTime(secs);
+  async function endTimer() {
+    await stopAndLogTimer();
+    await Promise.all([loadLogs(), load()]);
+    onChanged();
   }
 
   const done = !!task?.completedAt;
+  const worklogTotal = logs.reduce((n, l) => n + l.durationSeconds, 0);
+  const canStartTimer =
+    canEdit && !!task && isInProgress(task.section.name) && !runningTimer;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/50 animate-fade-in" onClick={onClose} />
-      <aside className="animate-slide-up relative flex h-full w-full max-w-[520px] flex-col border-l border-border bg-elevated shadow-lg">
+      <aside className="animate-slide-up relative flex h-full w-full max-w-[960px] flex-col border-l border-border bg-elevated shadow-lg">
         {loading || !task ? (
           <div className="flex h-full items-center justify-center">
             <Spinner size={22} />
@@ -244,16 +241,51 @@ export function TaskDetailPanel({
         ) : (
           <>
             {/* Header */}
-            <div className="flex h-13 shrink-0 items-center justify-between border-b border-border px-5 py-3">
+            <div className="flex h-13 shrink-0 items-center justify-between border-b border-border px-4">
               <div className="flex min-w-0 items-center gap-2 text-[12px] text-muted">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: task.project.color }} />
                 <span className="truncate font-medium text-text">{task.project.name}</span>
                 <span className="truncate text-faint">/ {task.section.name}</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1.5">
+                <span className="hidden font-mono text-[12px] tabular-nums text-muted sm:inline">
+                  {hmShort(worklogTotal)}
+                </span>
+                {canEdit &&
+                  (isThisRunning ? (
+                    <button
+                      onClick={endTimer}
+                      className="flex h-7 items-center gap-1 rounded-md bg-danger/10 px-2 font-mono text-[12px] font-semibold tabular-nums text-danger"
+                      title="Stop & log time"
+                    >
+                      <Square size={12} /> {hms(elapsed)}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={beginTimer}
+                      disabled={!canStartTimer}
+                      title={
+                        runningTimer
+                          ? "Another task's timer is running"
+                          : task && !isInProgress(task.section.name)
+                            ? "Move task to In Progress to start the timer"
+                            : "Start timer"
+                      }
+                      className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+                        canStartTimer
+                          ? "text-faint hover:bg-surface hover:text-accent"
+                          : "cursor-not-allowed text-faint/40"
+                      )}
+                      aria-label="Start timer"
+                    >
+                      <Play size={15} />
+                    </button>
+                  ))}
+                <div className="mx-0.5 h-4 w-px bg-border" />
                 {canEdit && (
                   <button
-                    onClick={deleteTask}
+                    onClick={() => setConfirmDelete(true)}
                     className="flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface hover:text-danger"
                     aria-label="Delete task"
                   >
@@ -270,7 +302,10 @@ export function TaskDetailPanel({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5">
+            {/* Two-pane body */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+              {/* Left: fields + description + subtasks */}
+              <div className="flex shrink-0 flex-col px-6 py-5 md:w-[56%] md:overflow-y-auto md:border-r md:border-border">
               {/* Complete + title */}
               <div className="flex items-start gap-3">
                 <button
@@ -295,75 +330,98 @@ export function TaskDetailPanel({
               </div>
 
               {/* Properties */}
-              <div className="mt-6 border-y border-border/70">
+              <div className="mt-6 border-y border-border/70 py-1">
                 {sections.length > 0 && (
-                  <PropRow label="Status">
-                    <select
-                      disabled={!canEdit}
-                      value={task.sectionId}
-                      onChange={(e) => patch({ sectionId: e.target.value })}
-                      className={selectCls}
-                    >
-                      {sections.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
+                  <PropRow icon={<CircleDot size={14} />} label="Task Status">
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={task.sectionId}
+                        disabled={!canEdit || isThisRunning}
+                        onChange={(v) => patch({ sectionId: v })}
+                        options={sections.map((s) => ({ value: s.id, label: s.name }))}
+                      />
+                      {isThisRunning && (
+                        <span className="shrink-0 whitespace-nowrap text-[11px] text-faint">
+                          locked · timer running
+                        </span>
+                      )}
+                    </div>
                   </PropRow>
                 )}
-                <PropRow label="Assignee">
-                  <select
-                    disabled={!canEdit}
+                <PropRow icon={<User2 size={14} />} label="Assignee">
+                  <Select
                     value={task.assigneeId ?? ""}
-                    onChange={(e) => patch({ assigneeId: e.target.value || null })}
-                    className={selectCls}
-                  >
-                    <option value="">Unassigned</option>
-                    {members.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                </PropRow>
-                <PropRow label="Priority">
-                  <select
                     disabled={!canEdit}
-                    value={task.priority}
-                    onChange={(e) => patch({ priority: e.target.value as Priority })}
-                    className={selectCls}
-                  >
-                    {PRIORITY_ORDER.map((p) => (
-                      <option key={p} value={p}>{PRIORITY_META[p].label}</option>
-                    ))}
-                  </select>
+                    searchable
+                    placeholder="Select assignee"
+                    onChange={(v) => patch({ assigneeId: v || null })}
+                    options={[
+                      { value: "", label: "Unassigned" },
+                      ...members.map((m) => ({
+                        value: m.id,
+                        label: m.name,
+                        leading: <Avatar name={m.name} src={m.avatar} size="xs" />,
+                      })),
+                    ]}
+                  />
                 </PropRow>
-                <PropRow label="Type">
+                <PropRow icon={<Flag size={14} />} label="Priority">
+                  <Select
+                    value={task.priority}
+                    disabled={!canEdit}
+                    onChange={(v) => patch({ priority: v as Priority })}
+                    options={PRIORITY_ORDER.map((p) => ({
+                      value: p,
+                      label: PRIORITY_META[p].label,
+                      leading: (
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PRIORITY_META[p].color }} />
+                      ),
+                    }))}
+                  />
+                </PropRow>
+                <PropRow icon={<Shapes size={14} />} label="Task Type">
                   <input
                     disabled={!canEdit}
                     defaultValue={task.taskType ?? ""}
-                    placeholder="e.g. Feature"
+                    placeholder="Select task type"
                     onBlur={(e) => {
                       const v = e.target.value.trim();
                       if (v !== (task.taskType ?? "")) patch({ taskType: v || null });
                     }}
-                    className={selectCls}
+                    className={fieldInputCls}
                   />
                 </PropRow>
-                <PropRow label="Milestone">
-                  <select
-                    disabled={!canEdit || milestones.length === 0}
+                <PropRow icon={<MilestoneIcon size={14} />} label="Milestone">
+                  <Select
                     value={task.milestoneId ?? ""}
-                    onChange={(e) => patch({ milestoneId: e.target.value || null })}
-                    className={selectCls}
-                  >
-                    <option value="">None</option>
-                    {task.milestone && !milestones.some((m) => m.id === task.milestone!.id) && (
-                      <option value={task.milestone.id}>{task.milestone.name}</option>
-                    )}
-                    {milestones.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
+                    disabled={!canEdit}
+                    placeholder="Select milestone"
+                    onChange={(v) => patch({ milestoneId: v || null })}
+                    options={[
+                      { value: "", label: "None" },
+                      ...(task.milestone && !milestones.some((m) => m.id === task.milestone!.id)
+                        ? [{ value: task.milestone.id, label: task.milestone.name }]
+                        : []),
+                      ...milestones.map((m) => ({
+                        value: m.id,
+                        label: m.name,
+                        leading: <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: m.color }} />,
+                      })),
+                    ]}
+                  />
                 </PropRow>
-                <PropRow label="Tags">
+                <PropRow icon={<DollarSign size={14} />} label="Billing Type">
+                  <Select
+                    value={task.billable ? "billable" : "non"}
+                    disabled={!canEdit}
+                    onChange={(v) => patch({ billable: v === "billable" })}
+                    options={[
+                      { value: "non", label: "Non-Billable" },
+                      { value: "billable", label: "Billable" },
+                    ]}
+                  />
+                </PropRow>
+                <PropRow icon={<Tags size={14} />} label="Tags">
                   <TagPicker
                     selected={task.resolvedTags}
                     all={tags}
@@ -381,7 +439,7 @@ export function TaskDetailPanel({
                     }
                   />
                 </PropRow>
-                <PropRow label="Estimation">
+                <PropRow icon={<Timer size={14} />} label="Estimation Hours">
                   <div className="flex items-center gap-1.5">
                     <input
                       type="number"
@@ -389,53 +447,35 @@ export function TaskDetailPanel({
                       step={0.5}
                       disabled={!canEdit}
                       defaultValue={task.estimateMinutes ? task.estimateMinutes / 60 : ""}
-                      placeholder="0"
+                      placeholder="No hours"
                       onBlur={(e) => {
                         const v = e.target.value ? Math.round(parseFloat(e.target.value) * 60) : null;
                         if (v !== task.estimateMinutes) patch({ estimateMinutes: v });
                       }}
-                      className={cn(selectCls, "min-w-0 w-20")}
+                      className={cn(fieldInputCls, "w-24")}
                     />
                     <span className="text-[12px] text-faint">hours</span>
                   </div>
                 </PropRow>
-                <PropRow label="Start date">
+                <PropRow icon={<CalendarDays size={14} />} label="Start Date">
                   <input
                     type="date"
                     disabled={!canEdit}
                     value={task.startDate ? format(new Date(task.startDate), "yyyy-MM-dd") : ""}
                     onChange={(e) => patch({ startDate: e.target.value || null })}
-                    className={selectCls}
+                    className={fieldInputCls}
                   />
                 </PropRow>
-                <PropRow label="Due date">
+                <PropRow icon={<CalendarClock size={14} />} label="Due Date">
                   <input
                     type="date"
                     disabled={!canEdit}
                     value={task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : ""}
                     onChange={(e) => patch({ dueDate: e.target.value || null })}
-                    className={selectCls}
+                    className={fieldInputCls}
                   />
                 </PropRow>
-                <PropRow label="Billable">
-                  <button
-                    disabled={!canEdit}
-                    onClick={() => patch({ billable: !task.billable })}
-                    className={cn(
-                      "relative h-5 w-9 rounded-full transition-colors",
-                      task.billable ? "bg-accent" : "bg-border-strong",
-                      !canEdit && "opacity-60"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
-                        task.billable ? "translate-x-4" : "translate-x-0.5"
-                      )}
-                    />
-                  </button>
-                </PropRow>
-                <PropRow label="Followers">
+                <PropRow icon={<Users size={14} />} label="Task Followers">
                   <FollowerPicker
                     followers={task.followers}
                     members={members}
@@ -443,21 +483,21 @@ export function TaskDetailPanel({
                     onChange={(ids) => patch({ followerIds: ids })}
                   />
                 </PropRow>
-                <PropRow label="Goal">
-                  <select
-                    disabled={!canEdit}
+                <PropRow icon={<Target size={14} />} label="Goal">
+                  <Select
                     value={task.goalId ?? ""}
-                    onChange={(e) => patch({ goalId: e.target.value || null })}
-                    className={selectCls}
-                  >
-                    <option value="">No goal</option>
-                    {task.goal && !goals.some((g) => g.id === task.goal!.id) && (
-                      <option value={task.goal.id}>{task.goal.title}</option>
-                    )}
-                    {goals.map((g) => (
-                      <option key={g.id} value={g.id}>{g.title}</option>
-                    ))}
-                  </select>
+                    disabled={!canEdit}
+                    searchable
+                    placeholder="No goal"
+                    onChange={(v) => patch({ goalId: v || null })}
+                    options={[
+                      { value: "", label: "No goal" },
+                      ...(task.goal && !goals.some((g) => g.id === task.goal!.id)
+                        ? [{ value: task.goal.id, label: task.goal.title }]
+                        : []),
+                      ...goals.map((g) => ({ value: g.id, label: g.title })),
+                    ]}
+                  />
                 </PropRow>
               </div>
 
@@ -476,122 +516,122 @@ export function TaskDetailPanel({
                 />
               </Section>
 
-              {/* Tabs */}
-              <div className="mt-7 flex items-center gap-1 border-b border-border">
-                <TabBtn icon={<ListTree size={13} />} label={`Subtasks${task.subtasks.length ? ` ${task.subtasks.length}` : ""}`} active={tab === "subtasks"} onClick={() => setTab("subtasks")} />
-                <TabBtn icon={<MessageSquare size={13} />} label={`Comments${task.comments.length ? ` ${task.comments.length}` : ""}`} active={tab === "comments"} onClick={() => setTab("comments")} />
-                <TabBtn icon={<Clock size={13} />} label="Work" active={tab === "worklog"} onClick={() => setTab("worklog")} />
-                <TabBtn icon={<History size={13} />} label="Activity" active={tab === "activity"} onClick={() => setTab("activity")} />
+              {/* Subtasks */}
+              <Section title={`Subtasks${task.subtasks.length ? ` · ${task.subtasks.length}` : ""}`}>
+                <div className="flex flex-col gap-0.5">
+                  {task.subtasks.map((st) => (
+                    <div key={st.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 hover:bg-surface">
+                      <button
+                        disabled={!canEdit}
+                        onClick={() => toggleSub(st.id, !st.completedAt)}
+                        className={cn(
+                          "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors",
+                          st.completedAt ? "border-success bg-success text-white" : "border-faint hover:border-text"
+                        )}
+                      >
+                        {st.completedAt && <Check size={9} />}
+                      </button>
+                      <span className={cn("text-[13px]", st.completedAt && "text-faint line-through")}>{st.title}</span>
+                    </div>
+                  ))}
+                  {task.subtasks.length === 0 && <p className="px-1.5 text-[12px] text-faint">No subtasks</p>}
+                  {canEdit && (
+                    <div className="mt-1 flex items-center gap-2 rounded-md px-1.5 py-1">
+                      <Plus size={14} className="text-faint" />
+                      <input
+                        value={subtaskTitle}
+                        onChange={(e) => setSubtaskTitle(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && addSubtask()}
+                        placeholder="Add subtask…"
+                        className="flex-1 bg-transparent py-0.5 text-[13px] outline-none placeholder:text-faint"
+                      />
+                    </div>
+                  )}
+                </div>
+              </Section>
               </div>
 
-              <div className="pt-4">
-                {tab === "subtasks" && (
-                  <div className="flex flex-col gap-0.5">
-                    {task.subtasks.map((st) => (
-                      <div key={st.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 hover:bg-surface">
-                        <button
-                          disabled={!canEdit}
-                          onClick={() => toggleSub(st.id, !st.completedAt)}
-                          className={cn(
-                            "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors",
-                            st.completedAt ? "border-success bg-success text-white" : "border-faint hover:border-text"
-                          )}
-                        >
-                          {st.completedAt && <Check size={9} />}
-                        </button>
-                        <span className={cn("text-[13px]", st.completedAt && "text-faint line-through")}>{st.title}</span>
-                      </div>
-                    ))}
-                    {task.subtasks.length === 0 && <p className="px-1.5 text-[12px] text-faint">No subtasks</p>}
-                    {canEdit && (
-                      <div className="mt-1 flex items-center gap-2 rounded-md px-1.5 py-1">
-                        <Plus size={14} className="text-faint" />
-                        <input
-                          value={subtaskTitle}
-                          onChange={(e) => setSubtaskTitle(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && addSubtask()}
-                          placeholder="Add subtask…"
-                          className="flex-1 bg-transparent py-0.5 text-[13px] outline-none placeholder:text-faint"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
+              {/* Right: activity / comments / work log + composer */}
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <div className="flex items-center gap-1 border-b border-border px-3">
+                  <TabBtn icon={<History size={13} />} label="Activity" active={tab === "activity"} onClick={() => setTab("activity")} />
+                  <TabBtn icon={<MessageSquare size={13} />} label={`Comments${task.comments.length ? ` ${task.comments.length}` : ""}`} active={tab === "comments"} onClick={() => setTab("comments")} />
+                  <TabBtn icon={<Clock size={13} />} label="Work Log" active={tab === "worklog"} onClick={() => setTab("worklog")} />
+                </div>
 
-                {tab === "comments" && (
-                  <div className="flex flex-col gap-4">
-                    {task.comments.map((c) => (
-                      <div key={c.id} className="flex gap-3">
-                        <Avatar name={c.author.name} src={c.author.avatar} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-[13px] font-medium">{c.author.name}</span>
-                            <span className="text-[11px] text-faint">{timeAgo(c.createdAt)}</span>
+                <div className="flex-1 overflow-y-auto px-4 py-3">
+                  {tab === "comments" && (
+                    <div className="flex flex-col gap-4">
+                      {task.comments.map((c) => (
+                        <div key={c.id} className="flex gap-3">
+                          <Avatar name={c.author.name} src={c.author.avatar} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[13px] font-medium">{c.author.name}</span>
+                              <span className="text-[11px] text-faint">{timeAgo(c.createdAt)}</span>
+                            </div>
+                            <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-muted">{c.content}</p>
                           </div>
-                          <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-muted">{c.content}</p>
                         </div>
-                      </div>
-                    ))}
-                    {task.comments.length === 0 && <p className="text-[12px] text-faint">No comments yet</p>}
+                      ))}
+                      {task.comments.length === 0 && <p className="text-[12px] text-faint">No comments yet</p>}
+                    </div>
+                  )}
+
+                  {tab === "worklog" && <WorkLog task={task} logs={logs} isThisRunning={isThisRunning} elapsed={elapsed} />}
+
+                  {tab === "activity" && (
+                    <div className="flex flex-col gap-3">
+                      {task.activities.map((a) => (
+                        <div key={a.id} className="flex items-start gap-2.5 text-[12px]">
+                          <Avatar name={a.user.name} src={a.user.avatar} size="xs" />
+                          <p className="leading-relaxed text-muted">
+                            <span className="font-medium text-text">{a.user.name}</span> {describeActivity(a.action, a.details)}
+                            <span className="ml-1.5 text-faint">{timeAgo(a.createdAt)}</span>
+                          </p>
+                        </div>
+                      ))}
+                      {task.activities.length === 0 && <p className="text-[12px] text-faint">No activity</p>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Comment composer */}
+                <div className="shrink-0 border-t border-border p-3">
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      value={comment}
+                      rows={1}
+                      placeholder="Write a comment…"
+                      onChange={(e) => setComment(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          postComment();
+                        }
+                      }}
+                      className="max-h-28 flex-1 resize-none rounded-lg border border-border bg-surface px-3 py-2.5 text-[13px] outline-none transition-colors focus:border-accent placeholder:text-faint"
+                    />
+                    <Button size="icon" onClick={postComment} disabled={!comment.trim()}>
+                      <Send size={15} />
+                    </Button>
                   </div>
-                )}
-
-                {tab === "worklog" && (
-                  <WorkLog
-                    task={task}
-                    logs={logs}
-                    canEdit={canEdit}
-                    running={running}
-                    elapsed={elapsed}
-                    onStart={startTimer}
-                    onStop={stopTimer}
-                    onManual={logTime}
-                  />
-                )}
-
-                {tab === "activity" && (
-                  <div className="flex flex-col gap-3">
-                    {task.activities.map((a) => (
-                      <div key={a.id} className="flex items-start gap-2.5 text-[12px]">
-                        <Avatar name={a.user.name} src={a.user.avatar} size="xs" />
-                        <p className="leading-relaxed text-muted">
-                          <span className="font-medium text-text">{a.user.name}</span> {describeActivity(a.action, a.details)}
-                          <span className="ml-1.5 text-faint">{timeAgo(a.createdAt)}</span>
-                        </p>
-                      </div>
-                    ))}
-                    {task.activities.length === 0 && <p className="text-[12px] text-faint">No activity</p>}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Comment composer (only on comments tab) */}
-            {tab === "comments" && (
-              <div className="shrink-0 border-t border-border p-3.5">
-                <div className="flex items-end gap-2">
-                  <textarea
-                    value={comment}
-                    rows={1}
-                    placeholder="Write a comment…"
-                    onChange={(e) => setComment(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        postComment();
-                      }
-                    }}
-                    className="max-h-28 flex-1 resize-none rounded-lg border border-border bg-surface px-3 py-2.5 text-[13px] outline-none transition-colors focus:border-accent placeholder:text-faint"
-                  />
-                  <Button size="icon" onClick={postComment} disabled={!comment.trim()}>
-                    <Send size={15} />
-                  </Button>
                 </div>
               </div>
-            )}
+            </div>
           </>
         )}
       </aside>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete task?"
+        description="This task and its subtasks will be removed. This can't be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={deleteTask}
+      />
     </div>
   );
 }
@@ -619,35 +659,17 @@ function describeActivity(action: string, details: string | null): string {
 function WorkLog({
   task,
   logs,
-  canEdit,
-  running,
+  isThisRunning,
   elapsed,
-  onStart,
-  onStop,
-  onManual,
 }: {
   task: TaskDetailDTO;
   logs: WorklogEntry[];
-  canEdit: boolean;
-  running: boolean;
+  isThisRunning: boolean;
   elapsed: number;
-  onStart: () => void;
-  onStop: () => void;
-  onManual: (seconds: number, note?: string) => void;
 }) {
-  const [h, setH] = useState("");
-  const [m, setM] = useState("");
-  const [note, setNote] = useState("");
   const total = logs.reduce((n, l) => n + l.durationSeconds, 0);
   const estSecs = (task.estimateMinutes ?? 0) * 60;
   const pct = estSecs ? Math.min(100, Math.round((total / estSecs) * 100)) : 0;
-
-  function submit() {
-    const secs = (parseInt(h || "0") || 0) * 3600 + (parseInt(m || "0") || 0) * 60;
-    if (secs < 1) return;
-    onManual(secs, note.trim() || undefined);
-    setH(""); setM(""); setNote("");
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -664,32 +686,18 @@ function WorkLog({
         )}
       </div>
 
-      {canEdit && (
-        <>
-          {/* Timer */}
-          <div className="flex items-center justify-between rounded-lg border border-border p-3">
-            <span className={cn("font-mono text-[18px] tabular-nums", running ? "text-accent" : "text-muted")}>
-              {hms(elapsed)}
-            </span>
-            {running ? (
-              <Button size="sm" variant="danger" onClick={onStop}>
-                <Square size={13} /> Stop & log
-              </Button>
-            ) : (
-              <Button size="sm" onClick={onStart}>
-                <Play size={13} /> Start timer
-              </Button>
-            )}
-          </div>
-
-          {/* Manual */}
-          <div className="flex flex-wrap items-center gap-2">
-            <input value={h} onChange={(e) => setH(e.target.value)} type="number" min={0} placeholder="h" className="h-8 w-14 rounded-md border border-border bg-surface px-2 text-[13px] outline-none focus:border-accent" />
-            <input value={m} onChange={(e) => setM(e.target.value)} type="number" min={0} max={59} placeholder="m" className="h-8 w-14 rounded-md border border-border bg-surface px-2 text-[13px] outline-none focus:border-accent" />
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="h-8 min-w-0 flex-1 rounded-md border border-border bg-surface px-2.5 text-[13px] outline-none focus:border-accent" />
-            <Button size="sm" variant="secondary" onClick={submit}>Log</Button>
-          </div>
-        </>
+      {isThisRunning ? (
+        <div className="flex items-center justify-between rounded-lg border border-accent/40 bg-accent-soft p-3">
+          <span className="flex items-center gap-2 text-[12px] font-medium text-accent">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-accent" /> Timer running
+          </span>
+          <span className="font-mono text-[18px] font-semibold tabular-nums text-accent">{hms(elapsed)}</span>
+        </div>
+      ) : (
+        <p className="rounded-lg border border-dashed border-border p-3 text-center text-[12px] text-faint">
+          Time is tracked only with the timer (in the header). Move the task to{" "}
+          <span className="font-medium text-muted">In Progress</span> to start it.
+        </p>
       )}
 
       {/* Entries */}
@@ -853,11 +861,22 @@ function TabBtn({ icon, label, active, onClick }: { icon: React.ReactNode; label
   );
 }
 
-function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
+function PropRow({
+  icon,
+  label,
+  children,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border/70 py-2.5 last:border-b-0">
-      <span className="shrink-0 text-[13px] text-muted">{label}</span>
-      {children}
+    <div className="grid grid-cols-[140px_1fr] items-center gap-2 py-1">
+      <span className="flex items-center gap-2 text-[13px] text-muted">
+        {icon && <span className="shrink-0 text-faint">{icon}</span>}
+        <span className="truncate">{label}</span>
+      </span>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }

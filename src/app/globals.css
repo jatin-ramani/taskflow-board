@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -39,13 +39,13 @@
   --color-msg-mine: var(--c-msg-mine);
   --color-msg-mine-fg: var(--c-msg-mine-fg);
 
-  /* Minimal, professional roundness (Teams-like) */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
+  /* Minimal, professional roundness (Superworks ~5px) */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Mulish', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   --shadow-sm: var(--sh-sm);
@@ -54,41 +54,42 @@
   --shadow-popover: var(--sh-popover);
 }
 
-/* ---------- Light (Teams / Fluent) ---------- */
+/* ---------- Light (Superworks blue: bright, clean) ---------- */
 :root {
   color-scheme: light;
 
-  --c-bg: #f5f5f5;
+  --c-bg: #f5f8fc;
   --c-elevated: #ffffff;
-  --c-surface: #ebebeb;
+  --c-surface: #eef3fb;
   --c-overlay: #ffffff;
   --c-sidebar: #ffffff;
-  --c-border: #e1e1e1;
-  --c-border-strong: #d1d1d1;
+  --c-border: #e5eaf2;
+  --c-border-strong: #d4dbe8;
 
-  --c-text: #242424;
-  --c-muted: #616161;
-  --c-faint: #9e9e9e;
+  --c-text: #1f2937;
+  --c-muted: #6b7280;
+  --c-faint: #9aa3b2;
 
-  --c-accent: #5b5fc7;
-  --c-accent-hover: #4f52b2;
-  --c-accent-soft: rgba(91, 95, 199, 0.1);
+  --c-accent: #4f9dff;
+  --c-accent-hover: #2f80ed;
+  --c-accent-soft: #eaf4ff;
 
-  --c-msg-mine: #e8ebfa;
-  --c-msg-mine-fg: #242424;
+  --c-msg-mine: #eaf4ff;
+  --c-msg-mine-fg: #1f2937;
 
-  --c-success: #0e7c42;
-  --c-warning: #b26a00;
-  --c-danger: #c4314b;
-  --c-danger-hover: #a82c43;
+  --c-success: #22c55e;
+  --c-warning: #f5a623;
+  --c-danger: #ef4444;
+  --c-danger-hover: #dc2626;
 
-  --c-scrollbar: #c8c8c8;
-  --c-scrollbar-hover: #b3b3b3;
+  --c-scrollbar: #cdd5e0;
+  --c-scrollbar-hover: #b4bdcb;
 
-  --sh-sm: 0 1px 2px rgba(17, 17, 26, 0.05), 0 0 1px rgba(17, 17, 26, 0.05);
-  --sh-md: 0 2px 8px rgba(17, 17, 26, 0.06), 0 1px 3px rgba(17, 17, 26, 0.05);
-  --sh-lg: 0 12px 32px rgba(17, 17, 26, 0.1), 0 4px 10px rgba(17, 17, 26, 0.05);
-  --sh-popover: 0 8px 28px rgba(17, 17, 26, 0.12), 0 2px 6px rgba(17, 17, 26, 0.06);
+  /* Cool slate-tinted elevation (cleaner than purple-gray) */
+  --sh-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --sh-md: 0 2px 8px rgba(16, 24, 40, 0.07), 0 1px 3px rgba(16, 24, 40, 0.05);
+  --sh-lg: 0 12px 32px rgba(16, 24, 40, 0.12), 0 4px 10px rgba(16, 24, 40, 0.06);
+  --sh-popover: 0 8px 28px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.07);
 }
 
 /* ---------- Dark (Teams / Fluent) ---------- */
@@ -107,14 +108,14 @@
   --c-muted: #adadad;
   --c-faint: #808080;
 
-  --c-accent: #5b5fc7;
-  --c-accent-hover: #7174d4;
-  --c-accent-soft: rgba(124, 128, 230, 0.2);
+  --c-accent: #4f9dff;
+  --c-accent-hover: #6bb0ff;
+  --c-accent-soft: rgba(79, 157, 255, 0.18);
 
-  --c-msg-mine: #444466;
+  --c-msg-mine: #28394f;
   --c-msg-mine-fg: #f5f5f5;
 
-  --c-success: #6bb700;
+  --c-success: #34d058;
   --c-warning: #ffaa44;
   --c-danger: #f1707b;
   --c-danger-hover: #f48a93;
@@ -194,9 +195,13 @@
   background-clip: padding-box;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
+/* In @layer base so components that provide their own focus affordance
+   (e.g. a focus-within container border) can opt out with `outline-none`. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
 }
 
 /* ============================================================
@@ -224,4 +229,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Chat markdown: break long URLs/words so they never overflow the bubble. */
+.chat-md {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.chat-md a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.chat-md a:hover {
+  color: var(--color-accent-hover);
 }

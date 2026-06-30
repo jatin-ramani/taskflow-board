@@ -17,6 +17,7 @@ const messageSelect = {
   senderId: true,
   attachments: true,
   reactions: true,
+  system: true,
   createdAt: true,
   editedAt: true,
   sender: { select: publicUserSelect },
@@ -67,7 +68,6 @@ export async function GET(
         where: {
           conversationId: id,
           deletedAt: null,
-          NOT: { expiresAt: { lte: new Date() } },
           ...afterCleared,
         },
         orderBy: { createdAt: "asc" },
@@ -82,7 +82,7 @@ export async function GET(
           name: true,
           avatar: true,
           pinnedMessageId: true,
-          disappearSeconds: true,
+          vanishMode: true,
           participants: {
             select: { user: { select: { ...publicUserSelect, lastSeenAt: true } } },
           },
@@ -119,7 +119,7 @@ export async function GET(
               ? isOnline(others[0].user.lastSeenAt)
               : false,
           pinned,
-          disappearSeconds: convo.disappearSeconds ?? null,
+          vanishMode: convo.vanishMode,
         }
       : null;
 
@@ -162,14 +162,12 @@ export async function POST(
       replyToId = target?.id ?? null;
     }
 
-    // Disappearing messages: stamp an expiry if the conversation has it on.
+    // Vanish mode: mark messages sent during a vanish session as ephemeral.
     const settings = await prisma.conversation.findUnique({
       where: { id },
-      select: { disappearSeconds: true },
+      select: { vanishMode: true },
     });
-    const expiresAt = settings?.disappearSeconds
-      ? new Date(Date.now() + settings.disappearSeconds * 1000)
-      : null;
+    const vanish = settings?.vanishMode ?? false;
 
     const now = new Date();
     const [message] = await prisma.$transaction([
@@ -180,7 +178,7 @@ export async function POST(
           content,
           attachments,
           replyToId,
-          expiresAt,
+          vanish,
           deletedAt: null,
         },
         select: messageSelect,

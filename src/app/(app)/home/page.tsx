@@ -1,353 +1,319 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { format } from "date-fns";
 import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
+import {
+  FolderKanban,
   ListTodo,
-  CalendarClock,
-  AlertTriangle,
   CheckCircle2,
-  CheckSquare,
-  Hash,
-  ArrowRight,
-  Check,
+  Clock4,
+  AlertTriangle,
+  Trophy,
+  CalendarClock,
+  ChevronRight,
+  Inbox as InboxIcon,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CopyButton } from "@/components/ui/copy-button";
+import { Avatar } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
-import { PriorityDot, DueDate } from "@/components/board/task-card";
-import { TaskDetailPanel } from "@/components/task/task-detail-panel";
-import { refreshSidebar } from "@/components/layout/app-sidebar";
 import { MobileMenuButton } from "@/components/layout/app-shell";
-import type {
-  DashboardStats,
-  MyTaskDTO,
-  ProjectSummary,
-  PublicUser,
-} from "@/types";
 
-type Tab = "upcoming" | "overdue" | "completed";
+interface ProjProgress {
+  id: string;
+  name: string;
+  color: string;
+  dueDate: string | null;
+  total: number;
+  done: number;
+  pct: number;
+  daysToGo?: number;
+}
+interface DashData {
+  kpis: { totalProjects: number; totalTasks: number; completedTasks: number; pendingTasks: number; overdueTasks: number };
+  leaderboard: { user: { id: string; name: string; avatar: string | null }; points: number }[];
+  myPoints: number;
+  myRank: number | null;
+  taskActivity: { label: string; count: number }[];
+  tasksForToday: { id: string; title: string; project: { id: string; name: string; color: string } }[];
+  overallDueTasks: { id: string; title: string; dueDate: string | null; project: { id: string; name: string; color: string } }[];
+  activeProjects: ProjProgress[];
+  overdueProjects: ProjProgress[];
+  projectsLaunch: ProjProgress[];
+}
+
+const KPIS = [
+  { key: "totalProjects", label: "Total Projects", icon: FolderKanban, color: "#4f9dff" },
+  { key: "totalTasks", label: "Total Tasks", icon: ListTodo, color: "#f5a623" },
+  { key: "completedTasks", label: "Completed Tasks", icon: CheckCircle2, color: "#22c55e" },
+  { key: "pendingTasks", label: "Pending Tasks", icon: Clock4, color: "#a855f7" },
+  { key: "overdueTasks", label: "Overdue Tasks", icon: AlertTriangle, color: "#ef4444" },
+] as const;
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const user = session?.user;
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [tasks, setTasks] = useState<MyTaskDTO[]>([]);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [tab, setTab] = useState<Tab>("upcoming");
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    const [s, t, p] = await Promise.all([
-      fetch("/api/stats"),
-      fetch("/api/tasks?scope=mine"),
-      fetch("/api/projects"),
-    ]);
-    if (s.ok) setStats(await s.json());
-    if (t.ok) setTasks(await t.json());
-    if (p.ok) setProjects(await p.json());
-    setLoading(false);
-  }, []);
+  const name = session?.user?.name?.split(" ")[0] ?? "there";
+  const [data, setData] = useState<DashData | null>(null);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    fetch("/api/dashboard")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setData)
+      .catch(() => {});
+  }, []);
 
-  const now = new Date();
-  const greeting =
-    now.getHours() < 12
-      ? "Good morning"
-      : now.getHours() < 18
-        ? "Good afternoon"
-        : "Good evening";
-  const dateStr = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-
-  const me: PublicUser | null = user
-    ? {
-        id: user.id,
-        name: user.name ?? "Me",
-        publicId: user.publicId,
-        username: user.username,
-        avatar: user.image ?? null,
-      }
-    : null;
-
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const grouped = useMemo(() => {
-    const upcoming = tasks.filter((t) => !t.completedAt);
-    const overdue = upcoming.filter(
-      (t) => t.dueDate && new Date(t.dueDate) < startToday
-    );
-    const completed = tasks.filter((t) => t.completedAt);
-    return { upcoming, overdue, completed };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks]);
-
-  const tabList = grouped[tab];
-
-  async function toggle(task: MyTaskDTO) {
-    const completed = !task.completedAt;
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === task.id
-          ? { ...t, completedAt: completed ? new Date().toISOString() : null }
-          : t
-      )
-    );
-    await fetch(`/api/tasks/${task.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed }),
-    });
-    load();
-  }
-
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Spinner size={22} />
-      </div>
-    );
-  }
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-2">
-            <MobileMenuButton className="-ml-1 mt-1" />
-            <div>
-              <p className="text-[13px] text-muted">{dateStr}</p>
-              <h1 className="mt-0.5 text-xl font-semibold tracking-tight sm:text-2xl">
-                {greeting}, {user?.name?.split(" ")[0]}
-              </h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-elevated px-3 py-2 text-[13px]">
-            <CheckCircle2 size={15} className="text-success" />
-            <span className="font-medium">{stats?.completedThisWeek ?? 0}</span>
-            <span className="text-muted">
-              <span className="hidden sm:inline">completed </span>this week
-            </span>
-          </div>
+    <div className="flex h-full flex-col">
+      <header className="flex h-13 shrink-0 items-center gap-2 border-b border-border px-4 sm:px-6">
+        <MobileMenuButton />
+        <div>
+          <p className="text-[11px] text-faint">{format(new Date(), "EEEE, MMMM d")}</p>
+          <h1 className="text-[15px] font-semibold leading-tight">{greeting}, {name}</h1>
         </div>
+      </header>
 
-        {/* Stat cards */}
-        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard
-            icon={<ListTodo size={15} />}
-            label="Active tasks"
-            value={stats?.activeCount ?? 0}
-            color="#5b5fc7"
-          />
-          <StatCard
-            icon={<CalendarClock size={15} />}
-            label="Due today"
-            value={stats?.dueTodayCount ?? 0}
-            color="#f2c94c"
-          />
-          <StatCard
-            icon={<AlertTriangle size={15} />}
-            label="Overdue"
-            value={stats?.overdueCount ?? 0}
-            color="#eb5757"
-          />
-          <StatCard
-            icon={<CheckCircle2 size={15} />}
-            label="Completed"
-            value={stats?.completedCount ?? 0}
-            color="#4cb782"
-          />
+      {!data ? (
+        <div className="flex flex-1 items-center justify-center">
+          <Spinner size={22} />
         </div>
-
-        {/* Two columns */}
-        <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
-          {/* My tasks widget */}
-          <div className="lg:col-span-2">
-            <div className="overflow-hidden rounded-xl border border-border bg-elevated">
-              <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-                <h2 className="flex items-center gap-2 text-[15px] font-semibold">
-                  <CheckSquare size={16} className="text-muted" /> My tasks
-                </h2>
-                <Link
-                  href="/my-tasks"
-                  className="flex items-center gap-1 text-[12px] text-muted transition-colors hover:text-text"
-                >
-                  View all <ArrowRight size={12} />
-                </Link>
-              </div>
-
-              <div className="flex gap-5 border-b border-border px-5">
-                {(["upcoming", "overdue", "completed"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTab(t)}
-                    className={cn(
-                      "-mb-px border-b-2 py-2.5 text-[13px] font-medium capitalize transition-colors",
-                      tab === t
-                        ? "border-text text-text"
-                        : "border-transparent text-faint hover:text-muted"
-                    )}
-                  >
-                    {t}
-                    <span className="ml-1.5 text-faint">{grouped[t].length}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="p-2">
-                {tabList.length === 0 ? (
-                  <p className="px-3 py-8 text-center text-[13px] text-faint">
-                    {tab === "completed"
-                      ? "Nothing completed yet"
-                      : tab === "overdue"
-                        ? "Nothing overdue — nice"
-                        : "No upcoming tasks"}
-                  </p>
-                ) : (
-                  tabList.slice(0, 8).map((task) => {
-                    const done = !!task.completedAt;
-                    return (
-                      <div
-                        key={task.id}
-                        onClick={() => setSelectedTaskId(task.id)}
-                        className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 transition-colors hover:bg-surface"
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggle(task);
-                          }}
-                          className={cn(
-                            "flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border transition-colors",
-                            done
-                              ? "border-success bg-success text-white"
-                              : "border-faint hover:border-text"
-                          )}
-                        >
-                          {done && <Check size={10} />}
-                        </button>
-                        <PriorityDot priority={task.priority} />
-                        <span
-                          className={cn(
-                            "flex-1 truncate text-[13px]",
-                            done && "text-faint line-through"
-                          )}
-                        >
-                          {task.title}
-                        </span>
-                        <span className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] text-faint">
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ background: task.project.color }}
-                          />
-                          {task.project.name}
-                        </span>
-                        <DueDate date={task.dueDate} done={done} />
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right column */}
-          <div className="flex flex-col gap-5">
-            {/* Projects */}
-            <div className="overflow-hidden rounded-xl border border-border bg-elevated">
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <h2 className="text-[14px] font-semibold">Projects</h2>
-                <span className="text-[12px] text-faint">{projects.length}</span>
-              </div>
-              <div className="p-1.5">
-                {projects.slice(0, 6).map((p) => (
-                  <Link
-                    key={p.id}
-                    href={`/projects/${p.id}`}
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-surface"
-                  >
-                    <span
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
-                      style={{ background: `${p.color}22` }}
-                    >
-                      <Hash size={13} style={{ color: p.color }} />
-                    </span>
-                    <span className="flex-1 truncate text-[13px]">{p.name}</span>
-                    <span className="text-[11px] text-faint">{p.taskCount}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Friend code */}
-            <div className="rounded-xl border border-border bg-elevated p-4">
-              <p className="text-[12px] font-medium text-muted">Your friend code</p>
-              <div className="mt-2 flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2">
-                <span className="font-mono text-[15px] font-semibold tracking-[0.2em]">
-                  {user?.publicId}
-                </span>
-                {user?.publicId && <CopyButton value={user.publicId} size={15} />}
-              </div>
-              <Link
-                href="/friends"
-                className="mt-2.5 flex items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-[12px] text-muted transition-colors hover:bg-surface hover:text-text"
+      ) : (
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+          {/* KPI row */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            {KPIS.map((k) => (
+              <div
+                key={k.key}
+                className="flex items-center gap-3 rounded-lg border border-border bg-elevated p-3.5 shadow-sm"
+                style={{ borderLeft: `3px solid ${k.color}` }}
               >
-                Add friends <ArrowRight size={12} />
-              </Link>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: `${k.color}1a` }}>
+                  <k.icon size={18} style={{ color: k.color }} />
+                </span>
+                <div>
+                  <p className="text-[22px] font-bold leading-none">{data.kpis[k.key]}</p>
+                  <p className="mt-1 text-[11px] text-muted">{k.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
+            {/* Main column */}
+            <div className="flex min-w-0 flex-col gap-4">
+              {/* Leaderboard */}
+              <Widget title="Leaderboard" action={<ViewAll href="/friends" />}>
+                {data.leaderboard.length === 0 ? (
+                  <Empty icon={<Trophy size={22} />} text="No leaderboard data yet" />
+                ) : (
+                  <div className="flex flex-col">
+                    {data.leaderboard.map((l, i) => (
+                      <div key={l.user.id} className="flex items-center gap-3 border-b border-border/60 py-2.5 last:border-0">
+                        <span className="w-4 text-center text-[12px] font-semibold text-faint">{i + 1}</span>
+                        <Avatar name={l.user.name} src={l.user.avatar} size="sm" />
+                        <span className="flex-1 truncate text-[13px] font-medium">{l.user.name}</span>
+                        <span className="flex items-center gap-1 text-[12px] font-semibold text-accent">
+                          <Trophy size={12} /> {l.points}pts
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Widget>
+
+              {/* Task Activity */}
+              <Widget title="Task Activity">
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={data.taskActivity} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="actcolor" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4f9dff" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#4f9dff" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--color-faint)" }} interval={1} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--color-faint)" }} />
+                    <Tooltip contentStyle={{ background: "var(--color-overlay)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} />
+                    <Area type="monotone" dataKey="count" stroke="#4f9dff" strokeWidth={2} fill="url(#actcolor)" dot={{ r: 3, fill: "#4f9dff" }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Widget>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Overall due */}
+                <Widget title="Overall Due Tasks" action={<ViewAll href="/my-tasks" />}>
+                  {data.overallDueTasks.length === 0 ? (
+                    <Empty icon={<CalendarClock size={22} />} text="No overall due tasks" />
+                  ) : (
+                    <TaskList items={data.overallDueTasks} showDue />
+                  )}
+                </Widget>
+                {/* Tasks for today */}
+                <Widget title="Tasks for Today" action={<ViewAll href="/my-tasks" />}>
+                  {data.tasksForToday.length === 0 ? (
+                    <Empty icon={<ListTodo size={22} />} text="No tasks for today" />
+                  ) : (
+                    <TaskList items={data.tasksForToday} />
+                  )}
+                </Widget>
+              </div>
+            </div>
+
+            {/* Right rail */}
+            <div className="flex flex-col gap-4">
+              {/* Points */}
+              <div className="overflow-hidden rounded-lg border border-border bg-linear-to-br from-accent to-[#7c5cff] p-4 text-white shadow-sm">
+                <div className="flex items-center gap-2 text-[12px] opacity-90">
+                  <Trophy size={15} /> Your Leaderboard Points
+                </div>
+                <p className="mt-1 text-[28px] font-bold leading-none">{data.myPoints}</p>
+                <p className="mt-2 text-[12px] opacity-90">
+                  {data.myRank ? `You're #${data.myRank} on the leaderboard 🎉` : "Complete tasks to climb the board!"}
+                </p>
+              </div>
+
+              {/* Active projects */}
+              <Widget title="Active Projects" action={<ViewAll href="/projects" />} dense>
+                {data.activeProjects.length === 0 ? (
+                  <Empty icon={<FolderKanban size={20} />} text="No active projects" />
+                ) : (
+                  data.activeProjects.map((p) => <ProjectRow key={p.id} p={p} />)
+                )}
+              </Widget>
+
+              {/* Overdue projects */}
+              {data.overdueProjects.length > 0 && (
+                <Widget title="Overdue Projects" dense>
+                  {data.overdueProjects.map((p) => (
+                    <ProjectRow key={p.id} p={p} overdue />
+                  ))}
+                </Widget>
+              )}
+
+              {/* Projects launch — countdown rings */}
+              {data.projectsLaunch.length > 0 && (
+                <Widget title="Projects Launch" dense>
+                  <div className="flex flex-col gap-3 pt-1">
+                    {data.projectsLaunch.map((p) => (
+                      <div key={p.id} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ background: p.color }}>
+                          {p.name.slice(0, 2).toUpperCase()}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[12px] font-semibold uppercase">{p.name}</p>
+                          <p className="flex items-center gap-1 text-[11px] text-faint">
+                            <CalendarDays size={11} />
+                            {p.dueDate ? format(new Date(p.dueDate), "EEE, MMM d, yyyy") : ""}
+                          </p>
+                        </div>
+                        <Ring days={p.daysToGo ?? 0} />
+                      </div>
+                    ))}
+                  </div>
+                </Widget>
+              )}
             </div>
           </div>
         </div>
-      </div>
-
-      {selectedTaskId && (
-        <TaskDetailPanel
-          taskId={selectedTaskId}
-          members={me ? [me] : []}
-          canEdit
-          onClose={() => setSelectedTaskId(null)}
-          onChanged={() => {
-            load();
-            refreshSidebar();
-          }}
-        />
       )}
     </div>
   );
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  color: string;
-}) {
+function Widget({ title, action, children, dense }: { title: string; action?: React.ReactNode; children: React.ReactNode; dense?: boolean }) {
   return (
-    <div className="rounded-xl border border-border bg-elevated p-4">
-      <div className="flex items-center gap-2">
-        <span
-          className="flex h-7 w-7 items-center justify-center rounded-lg"
-          style={{ background: `${color}22`, color }}
-        >
-          {icon}
-        </span>
-        <span className="text-[12px] text-muted">{label}</span>
+    <div className="rounded-lg border border-border bg-elevated shadow-sm">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+        <h3 className="text-[13px] font-semibold">{title}</h3>
+        {action}
       </div>
-      <p className="mt-2.5 text-[26px] font-semibold tabular-nums leading-none">
-        {value}
-      </p>
+      <div className={cn(dense ? "px-3 py-1.5" : "px-4 py-2")}>{children}</div>
+    </div>
+  );
+}
+
+function ViewAll({ href }: { href: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-0.5 text-[11px] font-medium text-accent hover:underline">
+      View All <ChevronRight size={12} />
+    </Link>
+  );
+}
+
+function Empty({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-8 text-faint">
+      <span className="text-faint/70">{icon}</span>
+      <p className="text-[12px]">{text}</p>
+    </div>
+  );
+}
+
+function TaskList({ items, showDue }: { items: { id: string; title: string; dueDate?: string | null; project: { id: string; name: string; color: string } }[]; showDue?: boolean }) {
+  return (
+    <div className="flex flex-col">
+      {items.map((t) => (
+        <Link key={t.id} href={`/projects/${t.project.id}`} className="flex items-center gap-2 border-b border-border/60 py-2 last:border-0 hover:opacity-80">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: t.project.color }} />
+          <span className="min-w-0 flex-1 truncate text-[12px]">{t.title}</span>
+          {showDue && t.dueDate && (
+            <span className="shrink-0 text-[11px] text-danger">{format(new Date(t.dueDate), "MMM d")}</span>
+          )}
+          <span className="shrink-0 truncate text-[11px] text-faint">{t.project.name}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ProjectRow({ p, overdue }: { p: ProjProgress; overdue?: boolean }) {
+  return (
+    <Link href={`/projects/${p.id}`} className="flex items-center gap-2.5 border-b border-border/60 py-2 last:border-0 hover:opacity-80">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white" style={{ background: p.color }}>
+        {p.name.slice(0, 2).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[12px] font-medium">{p.name}</p>
+        <p className="text-[11px] text-faint">{p.pct}% · {p.total} tasks</p>
+      </div>
+      {overdue && p.dueDate && (
+        <span className="shrink-0 rounded bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium text-danger">
+          {format(new Date(p.dueDate), "d MMM")}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function Ring({ days }: { days: number }) {
+  const cap = 180;
+  const frac = Math.max(0.06, Math.min(1, days / cap));
+  const r = 18;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative h-12 w-12 shrink-0">
+      <svg viewBox="0 0 44 44" className="h-12 w-12 -rotate-90">
+        <circle cx="22" cy="22" r={r} fill="none" stroke="var(--color-surface)" strokeWidth="4" />
+        <circle cx="22" cy="22" r={r} fill="none" stroke="#22c55e" strokeWidth="4" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - frac)} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[11px] font-bold leading-none">{days}</span>
+        <span className="text-[7px] text-faint">days</span>
+      </div>
     </div>
   );
 }

@@ -22,6 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Plus } from "lucide-react";
 import { TaskCard } from "./task-card";
 import { QuickAdd } from "./quick-add";
+import { useRunningTimer } from "@/lib/timer";
 import type { SectionDTO, TaskCardDTO, TagDTO, MilestoneDTO } from "@/types";
 
 interface Props {
@@ -80,6 +81,7 @@ export function KanbanBoard({
   canEdit,
 }: Props) {
   const [activeTask, setActiveTask] = useState<TaskCardDTO | null>(null);
+  const runningTaskId = useRunningTimer()?.taskId ?? null;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
@@ -183,7 +185,7 @@ export function KanbanBoard({
                   <SortableTaskCard
                     key={task.id}
                     task={task}
-                    disabled={!canEdit}
+                    disabled={!canEdit || task.id === runningTaskId}
                     onClick={() => onTaskClick(task.id)}
                     onToggle={() => onToggleComplete(task)}
                     tags={resolveTags(task.tagIds)}

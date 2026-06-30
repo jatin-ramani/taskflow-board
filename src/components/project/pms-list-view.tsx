@@ -9,11 +9,14 @@ import {
   Plus,
   Tag as TagIcon,
   Flag,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
+import { Select } from "@/components/ui/select";
 import { PriorityDot } from "@/components/board/task-card";
 import { QuickAdd } from "@/components/board/quick-add";
+import { useRunningTimer } from "@/lib/timer";
 import type {
   SectionDTO,
   TaskCardDTO,
@@ -192,6 +195,7 @@ function Row({
   onCreateTag: (name: string) => Promise<TagDTO | null>;
 }) {
   const done = !!task.completedAt;
+  const statusLocked = useRunningTimer()?.taskId === task.id;
   const key = (f: string) => `${task.id}:${f}`;
   const editing = (f: string) => edit === key(f);
   const startEdit = (f: string) => canEdit && setEdit(key(f));
@@ -201,7 +205,6 @@ function Row({
     stop();
   };
 
-  const milestone = task.milestoneId ? msById.get(task.milestoneId) : null;
   const taskTags = task.tagIds.map((id) => tagById.get(id)).filter(Boolean) as TagDTO[];
 
   return (
@@ -228,28 +231,22 @@ function Row({
 
       {/* Assignee */}
       <Cell>
-        {editing("assignee") ? (
-          <Selecter
-            value={task.assignee?.id ?? ""}
-            onCommit={(v) => set({ assigneeId: v || null })}
-            onCancel={stop}
-            options={[
-              { value: "", label: "Unassigned" },
-              ...members.map((m) => ({ value: m.id, label: m.name })),
-            ]}
-          />
-        ) : (
-          <button onClick={() => startEdit("assignee")} className="flex w-full items-center gap-1.5 text-left">
-            {task.assignee ? (
-              <>
-                <Avatar name={task.assignee.name} src={task.assignee.avatar} size="xs" />
-                <span className="truncate text-[12px]">{task.assignee.name}</span>
-              </>
-            ) : (
-              <span className="text-[12px] text-faint">Unassigned</span>
-            )}
-          </button>
-        )}
+        <Select
+          value={task.assignee?.id ?? ""}
+          searchable
+          disabled={!canEdit}
+          placeholder="Unassigned"
+          className="text-[12px]"
+          onChange={(v) => onUpdate(task.id, { assigneeId: v || null })}
+          options={[
+            { value: "", label: "Unassigned" },
+            ...members.map((m) => ({
+              value: m.id,
+              label: m.name,
+              leading: <Avatar name={m.name} src={m.avatar} size="xs" />,
+            })),
+          ]}
+        />
       </Cell>
 
       {/* Due */}
@@ -292,44 +289,41 @@ function Row({
 
       {/* Milestone */}
       <Cell>
-        {editing("milestone") ? (
-          <Selecter
-            value={task.milestoneId ?? ""}
-            onCommit={(v) => set({ milestoneId: v || null })}
-            onCancel={stop}
-            options={[
-              { value: "", label: "None" },
-              ...milestones.map((m) => ({ value: m.id, label: m.name })),
-            ]}
-          />
-        ) : (
-          <button onClick={() => startEdit("milestone")} className="flex w-full items-center gap-1 text-left">
-            {milestone ? (
-              <span className="flex items-center gap-1 truncate text-[12px]" style={{ color: milestone.color }}>
-                <Flag size={11} /> {milestone.name}
-              </span>
-            ) : (
-              <span className="text-[12px] text-faint">—</span>
-            )}
-          </button>
-        )}
+        <Select
+          value={task.milestoneId ?? ""}
+          disabled={!canEdit}
+          placeholder="—"
+          className="text-[12px]"
+          onChange={(v) => onUpdate(task.id, { milestoneId: v || null })}
+          options={[
+            { value: "", label: "—" },
+            ...milestones.map((m) => ({
+              value: m.id,
+              label: m.name,
+              leading: <Flag size={11} style={{ color: m.color }} />,
+            })),
+          ]}
+        />
       </Cell>
 
       {/* Status (section) */}
       <Cell>
-        {editing("status") ? (
-          <Selecter
+        {statusLocked ? (
+          <span
+            className="flex w-fit items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[11px] text-muted"
+            title="Status is locked while the timer is running"
+          >
+            {sections.find((s) => s.id === task.sectionId)?.name ?? "—"}
+            <Lock size={9} className="text-faint" />
+          </span>
+        ) : (
+          <Select
             value={task.sectionId}
-            onCommit={(v) => v && set({ sectionId: v })}
-            onCancel={stop}
+            disabled={!canEdit}
+            className="text-[12px]"
+            onChange={(v) => onUpdate(task.id, { sectionId: v })}
             options={sections.map((s) => ({ value: s.id, label: s.name }))}
           />
-        ) : (
-          <button onClick={() => startEdit("status")} className="w-full text-left">
-            <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] text-muted">
-              {sections.find((s) => s.id === task.sectionId)?.name ?? "—"}
-            </span>
-          </button>
         )}
       </Cell>
 
@@ -385,33 +379,6 @@ function Cell({ children }: { children: React.ReactNode }) {
   return <div className="min-w-0 border-l border-border/50 px-3 py-1.5">{children}</div>;
 }
 
-function Selecter({
-  value,
-  options,
-  onCommit,
-  onCancel,
-}: {
-  value: string;
-  options: { value: string; label: string }[];
-  onCommit: (v: string) => void;
-  onCancel: () => void;
-}) {
-  return (
-    <select
-      autoFocus
-      defaultValue={value}
-      onChange={(e) => onCommit(e.target.value)}
-      onBlur={onCancel}
-      className="h-6 w-full rounded border border-accent bg-surface px-1 text-[12px] outline-none"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 function TagsCell({
   taskTags,

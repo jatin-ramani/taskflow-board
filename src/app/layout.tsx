@@ -6,6 +6,12 @@ export const metadata: Metadata = {
   title: "TaskFlow",
   description:
     "A personal task & goal manager with friends, shared projects, and chat.",
+  icons: {
+    icon: [
+      { url: "/logo-light.svg", media: "(prefers-color-scheme: light)" },
+      { url: "/logo-dark.svg", media: "(prefers-color-scheme: dark)" },
+    ],
+  },
 };
 
 export default function RootLayout({

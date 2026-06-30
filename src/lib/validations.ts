@@ -63,7 +63,10 @@ export const createProjectSchema = z.object({
   color: z.string().optional(),
   icon: z.string().optional(),
 });
-export const updateProjectSchema = createProjectSchema.partial();
+export const updateProjectSchema = createProjectSchema.partial().extend({
+  isFavorite: z.boolean().optional(),
+  dueDate: z.string().nullable().optional(),
+});
 
 export const inviteMemberSchema = z.object({
   userId: z.string().min(1, "User is required"),
@@ -197,7 +200,7 @@ export const addMembersSchema = z.object({
 export const updateConversationSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   avatar: z.string().nullable().optional(),
-  disappearSeconds: z.number().int().min(0).max(2592000).nullable().optional(),
+  vanishMode: z.boolean().optional(),
 });
 export const conversationSettingsSchema = z.object({
   muted: z.boolean().optional(),

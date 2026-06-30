@@ -1,24 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MoreVertical, Timer, Eraser, Check } from "lucide-react";
+import { MoreVertical, Ghost, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 
-const DISAPPEAR_OPTIONS = [
-  { label: "Off", value: null as number | null },
-  { label: "1 hour", value: 3600 },
-  { label: "24 hours", value: 86400 },
-  { label: "7 days", value: 604800 },
-];
-
 export function ThreadMenu({
   conversationId,
-  disappearSeconds,
+  vanishMode,
   onChanged,
 }: {
   conversationId: string;
-  disappearSeconds: number | null;
+  vanishMode: boolean;
   onChanged: () => void;
 }) {
   const { toast } = useToast();
@@ -34,15 +27,16 @@ export function ThreadMenu({
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  async function setDisappear(value: number | null) {
+  async function toggleVanish() {
+    const next = !vanishMode;
     await fetch(`/api/conversations/${conversationId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ disappearSeconds: value }),
+      body: JSON.stringify({ vanishMode: next }),
     });
     onChanged();
     setOpen(false);
-    toast(value ? "Disappearing messages on" : "Disappearing messages off", "success");
+    toast(next ? "Vanish mode on" : "Vanish mode off — chat restored", "success");
   }
 
   async function clearHistory() {
@@ -68,26 +62,33 @@ export function ThreadMenu({
       </button>
 
       {open && (
-        <div className="animate-slide-up absolute right-0 top-[calc(100%+6px)] z-30 w-56 overflow-hidden rounded-md border border-border bg-overlay p-1 shadow-popover">
-          <p className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-faint">
-            <Timer size={12} /> Disappearing messages
-          </p>
-          {DISAPPEAR_OPTIONS.map((o) => {
-            const active = (disappearSeconds ?? null) === o.value;
-            return (
-              <button
-                key={o.label}
-                onClick={() => setDisappear(o.value)}
+        <div className="animate-slide-up absolute right-0 top-[calc(100%+6px)] z-30 w-64 overflow-hidden rounded-md border border-border bg-overlay p-1 shadow-popover">
+          {/* Vanish mode toggle */}
+          <button
+            onClick={toggleVanish}
+            className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left transition-colors hover:bg-surface"
+          >
+            <Ghost size={16} className={vanishMode ? "text-accent" : "text-faint"} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-medium">Vanish mode</span>
+              <span className="block text-[11px] text-faint">
+                New messages disappear when you close the chat
+              </span>
+            </span>
+            <span
+              className={cn(
+                "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+                vanishMode ? "bg-accent" : "bg-border-strong"
+              )}
+            >
+              <span
                 className={cn(
-                  "flex w-full items-center justify-between rounded px-2.5 py-1.5 text-left text-[13px] transition-colors hover:bg-surface",
-                  active ? "text-text" : "text-muted"
+                  "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
+                  vanishMode ? "translate-x-4" : "translate-x-0.5"
                 )}
-              >
-                {o.label}
-                {active && <Check size={14} className="text-accent" />}
-              </button>
-            );
-          })}
+              />
+            </span>
+          </button>
 
           <div className="my-1 h-px bg-border" />
           <button

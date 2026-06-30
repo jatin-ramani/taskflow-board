@@ -14,15 +14,40 @@ const profileSelect = {
   createdAt: true,
 } as const;
 
-// GET /api/me — current user's full profile.
+// GET /api/me — current user's full profile + lightweight stats.
 export async function GET() {
   try {
     const me = await requireUser();
-    const user = await prisma.user.findUnique({
-      where: { id: me.id },
-      select: profileSelect,
+    const [user, owned, memberOf, tasksDone, tasksOpen, friends, goals] =
+      await Promise.all([
+        prisma.user.findUnique({ where: { id: me.id }, select: profileSelect }),
+        prisma.project.count({ where: { ownerId: me.id } }),
+        prisma.projectMember.count({ where: { userId: me.id } }),
+        prisma.task.count({
+          where: { assigneeId: me.id, deletedAt: null, completedAt: { not: null } },
+        }),
+        prisma.task.count({
+          where: { assigneeId: me.id, deletedAt: null, completedAt: null },
+        }),
+        prisma.friendship.count({
+          where: {
+            status: "ACCEPTED",
+            OR: [{ requesterId: me.id }, { addresseeId: me.id }],
+          },
+        }),
+        prisma.goal.count({ where: { ownerId: me.id } }),
+      ]);
+
+    return NextResponse.json({
+      ...user,
+      stats: {
+        projects: owned + memberOf,
+        tasksDone,
+        tasksOpen,
+        friends,
+        goals,
+      },
     });
-    return NextResponse.json(user);
   } catch (err) {
     return toErrorResponse(err);
   }

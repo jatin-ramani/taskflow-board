@@ -29,9 +29,14 @@ export interface ProjectSummary {
   color: string;
   icon: string;
   isPersonal: boolean;
+  isFavorite: boolean;
+  dueDate: string | null;
   role: ProjectRole;
   taskCount: number;
   memberCount: number;
+  doneCount: number;
+  totalCount: number;
+  manager: PublicUser | null;
 }
 
 export interface TagDTO {
@@ -151,7 +156,7 @@ export interface ConversationMeta {
   members: MemberPresence[];
   online: boolean;
   pinned: { id: string; content: string; senderName: string } | null;
-  disappearSeconds: number | null;
+  vanishMode: boolean;
 }
 
 export interface MessageReplyPreview {
@@ -168,6 +173,7 @@ export interface MessageDTO {
   attachments: string[];
   reactions: Record<string, string[]>;
   replyTo: MessageReplyPreview | null;
+  system: boolean;
   createdAt: string;
   editedAt: string | null;
 }
@@ -230,6 +236,25 @@ export interface WorklogEntry {
   startedAt: string;
   createdAt: string;
   user: PublicUser;
+}
+
+export interface ProjectDashboardDTO {
+  totals: {
+    total: number;
+    open: number;
+    completed: number;
+    overdue: number;
+    dueToday: number;
+  };
+  estimateMinutes: number;
+  loggedSeconds: number;
+  billable: number;
+  byStatus: { name: string; count: number }[];
+  byPriority: { name: string; count: number; color: string }[];
+  byType: { name: string; count: number }[];
+  byAssignee: { name: string; avatar: string | null; count: number }[];
+  milestones: { name: string; color: string; done: number; total: number; pct: number }[];
+  leaderboard: { name: string; avatar: string | null; seconds: number }[];
 }
 
 export interface DashboardStats {

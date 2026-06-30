@@ -95,15 +95,29 @@ export async function PATCH(
   try {
     const me = await requireUser();
     const { projectId } = await params;
-    await requireProjectRole(me.id, projectId, "ADMIN");
 
     const body = await req.json();
     const parsed = updateProjectSchema.safeParse(body);
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
+    const d = parsed.data;
+
+    // Favouriting is allowed for any member; structural edits require ADMIN.
+    const onlyFavorite =
+      d.isFavorite !== undefined &&
+      Object.keys(d).filter((k) => k !== "isFavorite").length === 0;
+    await requireProjectRole(me.id, projectId, onlyFavorite ? "VIEWER" : "ADMIN");
+
+    const data: Record<string, unknown> = {};
+    if (d.name !== undefined) data.name = d.name;
+    if (d.description !== undefined) data.description = d.description || null;
+    if (d.color !== undefined) data.color = d.color;
+    if (d.icon !== undefined) data.icon = d.icon;
+    if (d.isFavorite !== undefined) data.isFavorite = d.isFavorite;
+    if (d.dueDate !== undefined) data.dueDate = d.dueDate ? new Date(d.dueDate) : null;
 
     const project = await prisma.project.update({
       where: { id: projectId },
-      data: parsed.data,
+      data,
       select: { id: true, name: true, description: true, color: true, icon: true },
     });
 

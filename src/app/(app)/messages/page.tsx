@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { MessageSquare, Plus, ArrowLeft, Users, Pin, Timer } from "lucide-react";
+import { MessageSquare, Plus, ArrowLeft, Users, Pin, Ghost } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
@@ -226,6 +226,7 @@ function Thread({
   const [replyingTo, setReplyingTo] = useState<MessageDTO | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastCountRef = useRef(0);
+  const vanishRef = useRef(false);
 
   const scrollToBottom = useCallback((smooth = false) => {
     requestAnimationFrame(() => {
@@ -273,6 +274,24 @@ function Thread({
       clearInterval(t);
     };
   }, [load, conversationId]);
+
+  // Vanish mode: when leaving this chat with vanish on, purge the ephemeral
+  // messages sent during the session (old history stays). keepalive lets the
+  // request finish even as the component unmounts.
+  useEffect(() => {
+    vanishRef.current = meta?.vanishMode ?? false;
+  }, [meta?.vanishMode]);
+
+  useEffect(() => {
+    return () => {
+      if (vanishRef.current) {
+        fetch(`/api/conversations/${conversationId}/vanish`, {
+          method: "DELETE",
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+  }, [conversationId]);
 
   async function send(content: string, attachments: string[]) {
     const replyToId = replyingTo?.id ?? null;
@@ -389,21 +408,33 @@ function Thread({
           {meta && (
             <ThreadMenu
               conversationId={conversationId}
-              disappearSeconds={meta.disappearSeconds}
+              vanishMode={meta.vanishMode}
               onChanged={() => load(true)}
             />
           )}
         </div>
       </div>
 
-      {/* Disappearing banner */}
-      {meta?.disappearSeconds ? (
+      {/* Vanish mode banner */}
+      {meta?.vanishMode ? (
         <div className="flex items-center gap-2 border-b border-border bg-accent-soft px-4 py-1.5 text-[12px] text-accent">
-          <Timer size={13} className="shrink-0" />
-          Disappearing messages are on —{" "}
-          {meta.disappearSeconds >= 86400
-            ? `${Math.round(meta.disappearSeconds / 86400)} day(s)`
-            : `${Math.round(meta.disappearSeconds / 3600)} hour(s)`}
+          <Ghost size={13} className="shrink-0" />
+          <span className="min-w-0 flex-1">
+            Vanish mode is on — messages you send here disappear when you close the chat.
+          </span>
+          <button
+            onClick={async () => {
+              await fetch(`/api/conversations/${conversationId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ vanishMode: false }),
+              });
+              load(true);
+            }}
+            className="shrink-0 rounded-full border border-accent/40 px-2.5 py-0.5 text-[11px] font-semibold transition-colors hover:bg-accent hover:text-white"
+          >
+            Turn off
+          </button>
         </div>
       ) : null}
 
@@ -425,11 +456,17 @@ function Thread({
       )}
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 sm:px-5">
+      <div
+        ref={scrollRef}
+        className={cn(
+          "flex-1 overflow-y-auto px-3 py-4 transition-colors sm:px-5",
+          meta?.vanishMode && "bg-[#15131f] dark:bg-black"
+        )}
+      >
         {loading ? (
           <Spinner size={18} className="mx-auto mt-8" />
         ) : messages.length === 0 ? (
-          <p className="mt-10 text-center text-[13px] text-faint">
+          <p className={cn("mt-10 text-center text-[13px]", meta?.vanishMode ? "text-white/50" : "text-faint")}>
             Say hi 👋 — this is the start of your conversation.
           </p>
         ) : (
@@ -439,6 +476,7 @@ function Thread({
               meId={meId}
               isGroup={!!meta?.isGroup}
               pinnedId={meta?.pinned?.id}
+              vanish={!!meta?.vanishMode}
               onReact={react}
               onEdit={edit}
               onDelete={remove}

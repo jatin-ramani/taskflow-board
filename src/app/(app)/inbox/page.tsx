@@ -26,14 +26,14 @@ import { cn, timeAgo } from "@/lib/utils";
 import type { NotificationItem } from "@/types";
 
 const typeMeta: Record<string, { icon: React.ReactNode; color: string }> = {
-  FRIEND_REQUEST: { icon: <UserPlus size={14} />, color: "#5b5fc7" },
-  FRIEND_ACCEPTED: { icon: <UserCheck size={14} />, color: "#4cb782" },
-  PROJECT_INVITE: { icon: <FolderPlus size={14} />, color: "#5b5fc7" },
-  TASK_ASSIGNED: { icon: <CheckSquare size={14} />, color: "#56a8f5" },
-  TASK_COMMENT: { icon: <MessageSquare size={14} />, color: "#a1a5ad" },
-  TASK_MENTION: { icon: <AtSign size={14} />, color: "#f2994a" },
-  TASK_DUE: { icon: <Clock size={14} />, color: "#eb5757" },
-  NEW_MESSAGE: { icon: <MessageSquare size={14} />, color: "#5b5fc7" },
+  FRIEND_REQUEST: { icon: <UserPlus size={14} />, color: "#4f9dff" },
+  FRIEND_ACCEPTED: { icon: <UserCheck size={14} />, color: "#22c55e" },
+  PROJECT_INVITE: { icon: <FolderPlus size={14} />, color: "#4f9dff" },
+  TASK_ASSIGNED: { icon: <CheckSquare size={14} />, color: "#4f9dff" },
+  TASK_COMMENT: { icon: <MessageSquare size={14} />, color: "#9aa3b2" },
+  TASK_MENTION: { icon: <AtSign size={14} />, color: "#f5a623" },
+  TASK_DUE: { icon: <Clock size={14} />, color: "#ef4444" },
+  NEW_MESSAGE: { icon: <MessageSquare size={14} />, color: "#4f9dff" },
 };
 
 export default function InboxPage() {
@@ -41,6 +41,7 @@ export default function InboxPage() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/notifications");
@@ -93,13 +94,18 @@ export default function InboxPage() {
     }
   }
 
+  const unreadCount = items.filter((n) => !n.isRead).length;
+  const requestCount = items.filter((n) => n.type === "FRIEND_REQUEST").length;
+  const mentionCount = items.filter((n) => n.type === "TASK_MENTION").length;
+  const filtered = filter === "unread" ? items.filter((n) => !n.isRead) : items;
+
   return (
     <>
       <PageHeader
         title="Inbox"
         icon={<InboxIcon size={16} />}
         actions={
-          items.some((n) => !n.isRead) ? (
+          unreadCount > 0 ? (
             <Button size="sm" variant="ghost" onClick={markAllRead}>
               <CheckCheck size={14} /> Mark all read
             </Button>
@@ -108,20 +114,45 @@ export default function InboxPage() {
       />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl px-6 py-6">
+        <div className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
+          {/* Stats */}
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <IStat label="Total" value={items.length} color="#4f9dff" />
+            <IStat label="Unread" value={unreadCount} color="#f5a623" />
+            <IStat label="Requests" value={requestCount} color="#22c55e" />
+            <IStat label="Mentions" value={mentionCount} color="#a855f7" />
+          </div>
+
+          {/* Filter tabs */}
+          <div className="mb-3 flex items-center gap-1">
+            {(["all", "unread"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-[12px] font-medium capitalize transition-colors",
+                  filter === f ? "bg-accent-soft text-accent" : "text-muted hover:bg-surface hover:text-text"
+                )}
+              >
+                {f}
+                {f === "unread" && unreadCount > 0 ? ` (${unreadCount})` : ""}
+              </button>
+            ))}
+          </div>
+
           {loading ? (
             <div className="py-16">
               <Spinner size={20} className="mx-auto" />
             </div>
-          ) : items.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={<InboxIcon size={20} />}
-              title="You're all caught up"
+              title={filter === "unread" ? "No unread notifications" : "You're all caught up"}
               description="Friend requests, mentions, and updates will show up here."
             />
           ) : (
             <div className="overflow-hidden rounded-xl border border-border bg-elevated">
-              {items.map((n) => {
+              {filtered.map((n) => {
                 const meta = typeMeta[n.type] ?? {
                   icon: <InboxIcon size={14} />,
                   color: "#a1a5ad",
@@ -196,5 +227,17 @@ export default function InboxPage() {
         </div>
       </div>
     </>
+  );
+}
+
+function IStat({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-elevated p-3 shadow-sm" style={{ borderLeft: `3px solid ${color}` }}>
+      <span className="h-9 w-1 rounded-full" style={{ background: color }} />
+      <div>
+        <p className="text-[20px] font-bold leading-none">{value}</p>
+        <p className="mt-1 text-[11px] text-muted">{label}</p>
+      </div>
+    </div>
   );
 }

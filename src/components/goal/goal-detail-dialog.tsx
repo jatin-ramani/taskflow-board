@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Trash2, Check, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Select } from "@/components/ui/select";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
@@ -129,19 +130,21 @@ export function GoalDetailDialog({
             <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
               {/* Meta */}
               <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-[12px] text-muted">
+                <label className="flex flex-1 items-center gap-2 text-[12px] text-muted">
                   Status
-                  <select
-                    value={goal.status}
-                    onChange={(e) => patch({ status: e.target.value as GoalStatus })}
-                    className={`${fieldCls} capitalize`}
-                  >
-                    {GOAL_STATUS_ORDER.map((s) => (
-                      <option key={s} value={s}>
-                        {GOAL_STATUS_META[s].label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="min-w-0 flex-1 rounded-md border border-border bg-surface">
+                    <Select
+                      value={goal.status}
+                      onChange={(v) => patch({ status: v as GoalStatus })}
+                      options={GOAL_STATUS_ORDER.map((s) => ({
+                        value: s,
+                        label: GOAL_STATUS_META[s].label,
+                        leading: (
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: GOAL_STATUS_META[s].color }} />
+                        ),
+                      }))}
+                    />
+                  </div>
                 </label>
                 <label className="flex items-center gap-2 text-[12px] text-muted">
                   Target

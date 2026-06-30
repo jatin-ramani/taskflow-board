@@ -103,6 +103,8 @@ model Project {
   color       String   @default("#5e6ad2")
   icon        String   @default("folder")
   isPersonal  Boolean  @default(false) // auto-created "Personal" space
+  isFavorite  Boolean  @default(false)
+  dueDate     DateTime?
   ownerId     String   @db.ObjectId
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -324,7 +326,7 @@ model Conversation {
   avatar          String? // group icon URL
   pairKey         String?  @unique // DMs: sorted "minId_maxId"
   pinnedMessageId String?  @db.ObjectId // single pinned message
-  disappearSeconds Int? // null = off; messages vanish after N seconds
+  vanishMode      Boolean  @default(false) // Instagram-style: msgs sent while on vanish on close
   lastMessageAt   DateTime @default(now())
   createdAt       DateTime @default(now())
 
@@ -357,7 +359,8 @@ model Message {
   attachments    String[] // image URLs
   reactions      Json? // { "👍": ["userId", ...], ... }
   replyToId      String?   @db.ObjectId
-  expiresAt      DateTime? // disappearing messages
+  vanish         Boolean   @default(false) // sent during vanish mode; purged on chat close / vanish-off
+  system         Boolean   @default(false) // system note (e.g. vanish on/off); rendered as a divider
   createdAt      DateTime  @default(now())
   editedAt       DateTime?
   deletedAt      DateTime? // soft delete

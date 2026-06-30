@@ -5,14 +5,14 @@ import { UserPlus, Crown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
 import type { ProjectMemberDTO, PublicUser, ProjectRole, FriendItem } from "@/types";
 
 const ASSIGNABLE_ROLES: ProjectRole[] = ["ADMIN", "EDITOR", "VIEWER"];
-const selectCls =
-  "h-7 rounded-md border border-border bg-surface px-2 text-[12px] outline-none focus:border-accent disabled:opacity-60";
+const roleLabel = (r: ProjectRole) => r.charAt(0) + r.slice(1).toLowerCase();
 
 export function MembersDialog({
   open,
@@ -113,29 +113,26 @@ export function MembersDialog({
                 </p>
               ) : (
                 <div className="flex items-center gap-2">
-                  <select
-                    value={addUserId}
-                    onChange={(e) => setAddUserId(e.target.value)}
-                    className="h-8 flex-1 rounded-md border border-border bg-surface px-2 text-[13px] outline-none focus:border-accent"
-                  >
-                    <option value="">Select a friend…</option>
-                    {addable.map((f) => (
-                      <option key={f.user.id} value={f.user.id}>
-                        {f.user.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={addRole}
-                    onChange={(e) => setAddRole(e.target.value as ProjectRole)}
-                    className="h-8 rounded-md border border-border bg-surface px-2 text-[13px] capitalize outline-none focus:border-accent"
-                  >
-                    {ASSIGNABLE_ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r.toLowerCase()}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="min-w-0 flex-1 rounded-md border border-border bg-surface">
+                    <Select
+                      value={addUserId}
+                      searchable
+                      placeholder="Select a friend…"
+                      onChange={setAddUserId}
+                      options={addable.map((f) => ({
+                        value: f.user.id,
+                        label: f.user.name,
+                        leading: <Avatar name={f.user.name} src={f.user.avatar} size="xs" />,
+                      }))}
+                    />
+                  </div>
+                  <div className="w-28 rounded-md border border-border bg-surface">
+                    <Select
+                      value={addRole}
+                      onChange={(v) => setAddRole(v as ProjectRole)}
+                      options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
+                    />
+                  </div>
                   <Button size="icon" onClick={addMember} disabled={!addUserId || busy}>
                     {busy ? <Spinner size={14} className="text-white" /> : <UserPlus size={15} />}
                   </Button>
@@ -156,17 +153,13 @@ export function MembersDialog({
               <Row key={m.id} user={m.user}>
                 {canManage ? (
                   <div className="flex items-center gap-1.5">
-                    <select
-                      value={m.role}
-                      onChange={(e) => changeRole(m.id, e.target.value as ProjectRole)}
-                      className={`${selectCls} capitalize`}
-                    >
-                      {ASSIGNABLE_ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {r.toLowerCase()}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="w-28">
+                      <Select
+                        value={m.role}
+                        onChange={(v) => changeRole(m.id, v as ProjectRole)}
+                        options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))}
+                      />
+                    </div>
                     <button
                       onClick={() => removeMember(m.id)}
                       className="rounded px-1.5 py-1 text-[12px] text-faint transition-colors hover:text-danger"

@@ -1,4 +1,3 @@
-import { CheckSquare } from "lucide-react";
 
 export default function AuthLayout({
   children,
@@ -27,9 +26,10 @@ export default function AuthLayout({
       <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-10">
         {/* Brand */}
         <div className="mb-7 flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-accent shadow-[0_8px_24px_-6px_rgba(94,106,210,0.7)]">
-            <CheckSquare size={18} className="text-white" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-light.svg" alt="TaskFlow" className="h-10 w-10 dark:hidden" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-dark.svg" alt="TaskFlow" className="hidden h-10 w-10 dark:block" />
           <span className="text-[17px] font-semibold tracking-tight">TaskFlow</span>
         </div>
 

@@ -12,7 +12,13 @@ import {
   LogOut,
   User as UserIcon,
   Loader2,
+  Bell,
+  Plus,
+  FolderKanban,
+  Target,
+  Square,
 } from "lucide-react";
+import { useRunningTimer, useElapsed, stopAndLogTimer } from "@/lib/timer";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -82,9 +88,10 @@ export function TopNav() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-sidebar px-2 sm:px-3">
       <Link href="/home" className="flex shrink-0 items-center gap-2 px-1">
-        <span className="flex h-6 w-6 items-center justify-center rounded bg-accent">
-          <CheckSquare size={14} className="text-white" />
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-light.svg" alt="TaskFlow" className="h-7 w-7 dark:hidden" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-dark.svg" alt="TaskFlow" className="hidden h-7 w-7 dark:block" />
         <span className="hidden text-sm font-semibold tracking-tight sm:block">
           TaskFlow
         </span>
@@ -155,11 +162,108 @@ export function TopNav() {
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-1.5">
+        <RunningTimerPill />
+        <QuickCreate />
+        <NotifBell />
         <ThemeToggle />
-        <UserMenuCompact />
+        {/* Profile lives in the sidebar bottom on desktop; navbar on mobile. */}
+        <div className="md:hidden">
+          <UserMenuCompact />
+        </div>
       </div>
     </header>
+  );
+}
+
+function hmsShort(s: number) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return [h, m, sec].map((n) => String(n).padStart(2, "0")).join(":");
+}
+
+function RunningTimerPill() {
+  const router = useRouter();
+  const timer = useRunningTimer();
+  const elapsed = useElapsed(timer ? timer.startedAt : null);
+  if (!timer) return null;
+  return (
+    <div className="flex h-8 items-center gap-1 rounded-md border border-accent/40 bg-accent-soft pl-2 pr-1 text-accent">
+      <button
+        onClick={() => router.push(`/projects/${timer.projectId}`)}
+        className="flex min-w-0 items-center gap-1.5"
+        title={timer.title}
+      >
+        <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent" />
+        <span className="hidden max-w-[120px] truncate text-[12px] font-medium md:inline">{timer.title}</span>
+        <span className="font-mono text-[12px] font-semibold tabular-nums">{hmsShort(elapsed)}</span>
+      </button>
+      <button
+        onClick={() => stopAndLogTimer()}
+        title="Stop & log time"
+        className="flex h-6 w-6 items-center justify-center rounded transition-colors hover:bg-accent hover:text-white"
+      >
+        <Square size={12} />
+      </button>
+    </div>
+  );
+}
+
+function QuickCreate() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Create"
+        className="flex h-8 w-8 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface hover:text-text"
+      >
+        <Plus size={18} />
+      </button>
+      {open && (
+        <div className="animate-slide-up absolute right-0 top-[calc(100%+8px)] z-50 w-44 overflow-hidden rounded-md border border-border bg-overlay p-1 shadow-popover">
+          <Link href="/projects" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface hover:text-text">
+            <FolderKanban size={14} /> New project
+          </Link>
+          <Link href="/goals" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface hover:text-text">
+            <Target size={14} /> New goal
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotifBell() {
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    fetch("/api/notifications")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setUnread(d.unreadCount ?? 0))
+      .catch(() => {});
+  }, []);
+  return (
+    <Link
+      href="/inbox"
+      aria-label="Notifications"
+      className="relative flex h-8 w-8 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface hover:text-text"
+    >
+      <Bell size={17} />
+      {unread > 0 && (
+        <span className="absolute right-1.5 top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-danger px-0.5 text-[8px] font-bold text-white ring-2 ring-sidebar">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </Link>
   );
 }
 

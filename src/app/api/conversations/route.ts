@@ -46,10 +46,9 @@ export async function GET() {
 
         const cleared = mine?.clearedAt ?? null;
         const afterCleared = cleared ? { createdAt: { gt: cleared } } : {};
-        const notExpired = { NOT: { expiresAt: { lte: new Date() } } };
 
         const last = await prisma.message.findFirst({
-          where: { conversationId: c.id, deletedAt: null, ...notExpired, ...afterCleared },
+          where: { conversationId: c.id, deletedAt: null, ...afterCleared },
           orderBy: { createdAt: "desc" },
           select: {
             content: true,
@@ -75,7 +74,6 @@ export async function GET() {
             conversationId: c.id,
             deletedAt: null,
             senderId: { not: me.id },
-            ...notExpired,
             ...(unreadAfter ? { createdAt: { gt: unreadAfter } } : {}),
           },
         });

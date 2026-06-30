@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutGrid, List, Hash, Users, CalendarDays, Flag } from "lucide-react";
+import { LayoutGrid, List, Hash, Users, CalendarDays, Flag, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FullSpinner } from "@/components/ui/spinner";
 import { Avatar } from "@/components/ui/avatar";
@@ -11,8 +11,10 @@ import { KanbanBoard } from "@/components/board/kanban-board";
 import { PmsListView } from "@/components/project/pms-list-view";
 import { CalendarView } from "@/components/project/calendar-view";
 import { MilestonesView } from "@/components/project/milestones-view";
+import { DashboardView } from "@/components/project/dashboard-view";
 import { TaskDetailPanel } from "@/components/task/task-detail-panel";
 import { MembersDialog } from "@/components/project/members-dialog";
+import { FilterBar, DEFAULT_FILTERS, filtersActive, type TaskFilters } from "@/components/project/filter-bar";
 import { useToast } from "@/components/ui/toast";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
 import { MobileMenuButton } from "@/components/layout/app-shell";
@@ -24,7 +26,21 @@ import type {
   PublicUser,
 } from "@/types";
 
-type View = "board" | "list" | "calendar" | "milestones";
+type View = "board" | "list" | "calendar" | "milestones" | "dashboard";
+
+function matchesFilters(t: TaskCardDTO, f: TaskFilters): boolean {
+  if (f.hideCompleted && t.completedAt) return false;
+  if (f.search && !t.title.toLowerCase().includes(f.search.toLowerCase())) return false;
+  if (f.assignee === "unassigned") {
+    if (t.assignee) return false;
+  } else if (f.assignee !== "all" && t.assignee?.id !== f.assignee) {
+    return false;
+  }
+  if (f.priority !== "all" && t.priority !== f.priority) return false;
+  if (f.tag !== "all" && !t.tagIds.includes(f.tag)) return false;
+  if (f.milestone !== "all" && t.milestoneId !== f.milestone) return false;
+  return true;
+}
 
 export function ProjectView({ projectId }: { projectId: string }) {
   const { toast } = useToast();
@@ -35,6 +51,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
   const [view, setView] = useState<View>("board");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [filters, setFilters] = useState<TaskFilters>(DEFAULT_FILTERS);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/projects/${projectId}`);
@@ -151,6 +168,12 @@ export function ProjectView({ projectId }: { projectId: string }) {
     );
   }
 
+  const isFiltered = filtersActive(filters);
+  const displaySections = isFiltered
+    ? sections.map((s) => ({ ...s, tasks: s.tasks.filter((t) => matchesFilters(t, filters)) }))
+    : sections;
+  const showFilterBar = view === "board" || view === "list" || view === "calendar";
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -210,6 +233,10 @@ export function ProjectView({ projectId }: { projectId: string }) {
               <Flag size={14} />
               <span className="hidden md:inline"> Milestones</span>
             </ViewButton>
+            <ViewButton active={view === "dashboard"} onClick={() => setView("dashboard")}>
+              <BarChart3 size={14} />
+              <span className="hidden md:inline"> Dashboard</span>
+            </ViewButton>
           </div>
 
           <Button size="sm" variant="secondary" onClick={() => setMembersOpen(true)}>
@@ -229,11 +256,21 @@ export function ProjectView({ projectId }: { projectId: string }) {
         onChanged={load}
       />
 
+      {showFilterBar && (
+        <FilterBar
+          filters={filters}
+          onChange={setFilters}
+          members={assignable}
+          tags={project.tags}
+          milestones={project.milestones}
+        />
+      )}
+
       {/* Body */}
       <div className="min-h-0 flex-1">
         {view === "board" && (
           <KanbanBoard
-            sections={sections}
+            sections={displaySections}
             tags={project.tags}
             milestones={project.milestones}
             onSectionsChange={setSections}
@@ -242,12 +279,12 @@ export function ProjectView({ projectId }: { projectId: string }) {
             onToggleComplete={toggleComplete}
             onQuickAdd={quickAdd}
             onAddSection={addSection}
-            canEdit={canEdit}
+            canEdit={canEdit && !isFiltered}
           />
         )}
         {view === "list" && (
           <PmsListView
-            sections={sections}
+            sections={displaySections}
             milestones={project.milestones}
             tags={project.tags}
             members={assignable}
@@ -260,7 +297,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
           />
         )}
         {view === "calendar" && (
-          <CalendarView sections={sections} onTaskClick={setSelectedTaskId} />
+          <CalendarView sections={displaySections} onTaskClick={setSelectedTaskId} />
         )}
         {view === "milestones" && (
           <MilestonesView
@@ -271,6 +308,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
             onChanged={load}
           />
         )}
+        {view === "dashboard" && <DashboardView projectId={projectId} />}
       </div>
 
       {selectedTaskId && (
