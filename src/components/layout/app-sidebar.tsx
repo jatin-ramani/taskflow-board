@@ -118,7 +118,7 @@ export function AppSidebar() {
               />
               <span className="flex-1">{item.label}</span>
               {count > 0 && (
-                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
                   {count > 99 ? "99+" : count}
                 </span>
               )}

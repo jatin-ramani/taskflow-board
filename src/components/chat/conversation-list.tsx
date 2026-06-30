@@ -161,8 +161,8 @@ export function ConversationList({
                               : "No messages yet"}
                           </span>
                           {c.unreadCount > 0 && (
-                            <span className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
-                              {c.unreadCount}
+                            <span className="flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
+                              {c.unreadCount > 99 ? "99+" : c.unreadCount}
                             </span>
                           )}
                         </div>
