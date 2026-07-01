@@ -145,7 +145,13 @@ export interface UserProfile {
   publicId: string;
   bio: string | null;
   online: boolean;
+  lastSeenAt: string | null;
+  createdAt: string;
   isFriend: boolean;
+  isSelf: boolean;
+  mutualFriends: number;
+  sharedProjects: { id: string; name: string; color: string }[];
+  friendSince: string | null;
 }
 
 export type MemberPresence = PublicUser & { online: boolean };
