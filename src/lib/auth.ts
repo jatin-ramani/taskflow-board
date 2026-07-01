@@ -45,11 +45,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.publicId = user.publicId as string;
         token.username = user.username ?? null;
         token.picture = user.image ?? null;
+        token.refreshedAt = Date.now();
       }
       if (trigger === "update" && session?.user) {
         token.picture = session.user.image ?? token.picture;
         token.name = session.user.name ?? token.name;
         token.username = session.user.username ?? token.username;
+        token.refreshedAt = Date.now();
+      }
+      // Periodically re-sync mutable profile fields from the DB so an avatar /
+      // name change made in one session (or on another device) shows up in every
+      // session — without forcing a re-login. Throttled to limit DB hits.
+      const refreshedAt = (token.refreshedAt as number | undefined) ?? 0;
+      if (token.id && Date.now() - refreshedAt > 60_000) {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { avatar: true, name: true, username: true },
+        });
+        if (fresh) {
+          token.picture = fresh.avatar ?? null;
+          token.name = fresh.name;
+          token.username = fresh.username ?? null;
+        }
+        token.refreshedAt = Date.now();
       }
       return token;
     },
