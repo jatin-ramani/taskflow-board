@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Inbox as InboxIcon,
   UserPlus,
@@ -38,14 +39,30 @@ const typeMeta: Record<string, { icon: React.ReactNode; color: string }> = {
 
 export default function InboxPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [pending, setPending] = useState<Set<string>>(new Set());
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [handled, setHandled] = useState<Record<string, "accepted" | "declined">>({});
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/notifications");
-    if (res.ok) setItems((await res.json()).items);
+    const [nRes, rRes, fRes] = await Promise.all([
+      fetch("/api/notifications"),
+      fetch("/api/friends/requests"),
+      fetch("/api/friends"),
+    ]);
+    if (nRes.ok) setItems((await nRes.json()).items);
+    if (rRes.ok) {
+      const d: { incoming: { friendshipId: string }[] } = await rRes.json();
+      setPending(new Set(d.incoming.map((r) => r.friendshipId)));
+    }
+    if (fRes.ok) {
+      const fr: { user: { id: string } }[] = await fRes.json();
+      setFriendIds(new Set(fr.map((f) => f.user.id)));
+    }
     setLoading(false);
   }, []);
 
@@ -67,6 +84,20 @@ export default function InboxPage() {
     });
   }, [load]);
 
+  async function message(userId: string) {
+    const res = await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (res.ok) {
+      const { id } = await res.json();
+      router.push(`/messages?c=${id}`);
+    } else {
+      toast("Could not open chat", "error");
+    }
+  }
+
   async function markAllRead() {
     await fetch("/api/notifications/read", { method: "POST" });
     setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
@@ -82,6 +113,7 @@ export default function InboxPage() {
         body: JSON.stringify({ action }),
       });
       if (res.ok) {
+        setHandled((h) => ({ ...h, [friendshipId]: action === "accept" ? "accepted" : "declined" }));
         toast(action === "accept" ? "You're now friends" : "Request declined", "success");
       } else {
         const d = await res.json();
@@ -157,7 +189,14 @@ export default function InboxPage() {
                   icon: <InboxIcon size={14} />,
                   color: "#a1a5ad",
                 };
-                const isFriendReq = n.type === "FRIEND_REQUEST" && n.entityId;
+                const friendReqId = n.type === "FRIEND_REQUEST" ? n.entityId : null;
+                let reqState: "pending" | "accepted" | "declined" | "handled" | null = null;
+                if (friendReqId) {
+                  if (handled[friendReqId]) reqState = handled[friendReqId];
+                  else if (pending.has(friendReqId)) reqState = "pending";
+                  else if (n.actor && friendIds.has(n.actor.id)) reqState = "accepted";
+                  else reqState = "handled";
+                }
                 return (
                   <div
                     key={n.id}
@@ -199,24 +238,44 @@ export default function InboxPage() {
                       )}
                       <p className="mt-1 text-[11px] text-faint">{timeAgo(n.createdAt)}</p>
 
-                      {isFriendReq && (
+                      {friendReqId && reqState === "pending" && (
                         <div className="mt-2.5 flex items-center gap-2">
                           <Button
                             size="sm"
-                            onClick={() => respond(n.entityId!, "accept")}
-                            disabled={busyId === n.entityId}
+                            onClick={() => respond(friendReqId, "accept")}
+                            disabled={busyId === friendReqId}
                           >
                             <Check size={13} /> Accept
                           </Button>
                           <Button
                             size="sm"
                             variant="secondary"
-                            onClick={() => respond(n.entityId!, "decline")}
-                            disabled={busyId === n.entityId}
+                            onClick={() => respond(friendReqId, "decline")}
+                            disabled={busyId === friendReqId}
                           >
                             <X size={13} /> Decline
                           </Button>
                         </div>
+                      )}
+                      {friendReqId && reqState === "accepted" && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="flex items-center gap-1.5 text-[12px] font-medium text-success">
+                            <UserCheck size={13} /> You're now friends
+                          </span>
+                          {n.actor && (
+                            <Button size="sm" variant="secondary" onClick={() => message(n.actor!.id)}>
+                              <MessageSquare size={13} /> Message
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {friendReqId && reqState === "declined" && (
+                        <p className="mt-2 flex items-center gap-1.5 text-[12px] text-faint">
+                          <X size={13} /> Request declined
+                        </p>
+                      )}
+                      {friendReqId && reqState === "handled" && (
+                        <p className="mt-2 text-[12px] text-faint">Request no longer pending</p>
                       )}
                     </div>
                   </div>

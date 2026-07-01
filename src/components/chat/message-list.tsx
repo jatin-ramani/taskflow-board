@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import {
   SmilePlus,
@@ -54,6 +54,56 @@ export function MessageList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [lightbox, setLightbox] = useState<number | null>(null);
+
+  // Mobile gestures: long-press opens the action menu, left-swipe replies.
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [swipe, setSwipe] = useState<{ id: string; dx: number } | null>(null);
+  const touchRef = useRef<{ x: number; y: number } | null>(null);
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const movedRef = useRef(false);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    const close = () => setOpenMenuId(null);
+    const id = setTimeout(() => document.addEventListener("click", close), 0);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("click", close);
+    };
+  }, [openMenuId]);
+
+  function touchStart(m: MessageDTO, e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchRef.current = { x: t.clientX, y: t.clientY };
+    movedRef.current = false;
+    if (lpTimer.current) clearTimeout(lpTimer.current);
+    lpTimer.current = setTimeout(() => {
+      if (!movedRef.current) {
+        setOpenMenuId(m.id);
+        setSwipe(null);
+        navigator.vibrate?.(12);
+      }
+    }, 420);
+  }
+  function touchMove(m: MessageDTO, e: React.TouchEvent) {
+    if (!touchRef.current) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchRef.current.x;
+    const dy = t.clientY - touchRef.current.y;
+    if (!movedRef.current && Math.hypot(dx, dy) > 8) {
+      movedRef.current = true;
+      if (lpTimer.current) clearTimeout(lpTimer.current);
+    }
+    if (Math.abs(dx) > Math.abs(dy) + 4 && dx < 0) {
+      setSwipe({ id: m.id, dx: Math.max(dx, -90) });
+    }
+  }
+  function touchEnd(m: MessageDTO) {
+    if (lpTimer.current) clearTimeout(lpTimer.current);
+    if (swipe?.id === m.id && swipe.dx <= -55) onReply(m);
+    setSwipe(null);
+    touchRef.current = null;
+  }
 
   const allImages = messages.flatMap((m) => m.attachments);
   let lastDay = "";
@@ -145,7 +195,25 @@ export function MessageList({
                   </div>
                 )}
 
-                <div className="group relative w-fit">
+                <div
+                  className="group relative w-fit touch-pan-y"
+                  onTouchStart={(e) => touchStart(m, e)}
+                  onTouchMove={(e) => touchMove(m, e)}
+                  onTouchEnd={() => touchEnd(m)}
+                  style={{
+                    transform: swipe?.id === m.id ? `translateX(${swipe.dx}px)` : undefined,
+                    transition: swipe?.id === m.id ? "none" : "transform 0.15s ease-out",
+                  }}
+                >
+                  {/* Swipe-to-reply hint */}
+                  {swipe?.id === m.id && swipe.dx < -10 && (
+                    <span
+                      className="absolute right-0 top-1/2 flex h-7 w-7 -translate-y-1/2 translate-x-9 items-center justify-center rounded-full bg-accent-soft text-accent"
+                      style={{ opacity: Math.min(1, -swipe.dx / 55) }}
+                    >
+                      <Reply size={14} />
+                    </span>
+                  )}
                   {editing ? (
                     <div className="min-w-[220px] rounded-md border border-accent bg-elevated p-2">
                       <textarea
@@ -224,7 +292,14 @@ export function MessageList({
                   {/* Floating action bar — sits above the bubble; the pb bridge
                       keeps it hoverable without overlapping the message. */}
                   {!editing && (
-                    <div className="absolute bottom-full right-0 z-20 pb-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div
+                      className={cn(
+                        "absolute bottom-full right-0 z-20 pb-1.5 transition-opacity",
+                        openMenuId === m.id
+                          ? "opacity-100"
+                          : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100"
+                      )}
+                    >
                       <div className="flex items-center gap-0.5 rounded-md border border-border bg-overlay p-0.5 shadow-md">
                       {QUICK_REACTIONS.slice(0, 4).map((e) => (
                         <button
@@ -280,20 +355,25 @@ export function MessageList({
                 </div>
 
                 {reactionEntries.length > 0 && (
-                  <div className={cn("mt-1 flex flex-wrap gap-1", mine && "justify-end")}>
+                  <div
+                    className={cn(
+                      "relative z-10 -mt-1.5 flex flex-wrap gap-1",
+                      mine ? "justify-end pr-1.5" : "justify-start pl-1.5"
+                    )}
+                  >
                     {reactionEntries.map(([emoji, ids]) => (
                       <button
                         key={emoji}
                         onClick={() => onReact(m.id, emoji)}
                         className={cn(
-                          "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] transition-colors",
+                          "flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] shadow-sm transition-colors",
                           ids.includes(meId)
                             ? "border-accent bg-accent-soft text-accent"
                             : "border-border bg-elevated text-muted hover:bg-surface"
                         )}
                       >
-                        <span>{emoji}</span>
-                        <span>{ids.length}</span>
+                        <span className="text-[12px] leading-none">{emoji}</span>
+                        <span className="font-medium">{ids.length}</span>
                       </button>
                     ))}
                   </div>

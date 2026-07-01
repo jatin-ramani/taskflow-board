@@ -559,7 +559,7 @@ export function TaskDetailPanel({
                   <TabBtn icon={<Clock size={13} />} label="Work Log" active={tab === "worklog"} onClick={() => setTab("worklog")} />
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 py-3">
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
                   {tab === "comments" && (
                     <div className="flex flex-col gap-4">
                       {task.comments.map((c) => (

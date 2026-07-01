@@ -134,9 +134,12 @@ export default function ProfilePage() {
             <div className="px-5 pb-5 sm:px-6">
               <div className="-mt-10 flex flex-col gap-3 sm:-mt-12 sm:flex-row sm:items-end sm:gap-5">
                 <div className="relative shrink-0">
-                  <div className="rounded-full ring-4 ring-elevated">
-                    <Avatar name={me.name} src={me.avatar} size="xl" />
-                  </div>
+                  <Avatar
+                    name={me.name}
+                    src={me.avatar}
+                    size="xl"
+                    className="rounded-full ring-4 ring-elevated"
+                  />
                   <button
                     onClick={() => fileRef.current?.click()}
                     disabled={uploading}

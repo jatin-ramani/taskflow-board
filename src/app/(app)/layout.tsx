@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { ToastProvider } from "@/components/ui/toast";
 import { AppShell } from "@/components/layout/app-shell";
 import { Realtime } from "@/components/layout/realtime";
+import { NotificationsManager } from "@/components/layout/notifications-manager";
 
 export default async function AppLayout({
   children,
@@ -17,6 +18,7 @@ export default async function AppLayout({
     <SessionProvider session={session}>
       <ToastProvider>
         <Realtime />
+        <NotificationsManager />
         <AppShell>{children}</AppShell>
       </ToastProvider>
     </SessionProvider>
