@@ -8,7 +8,7 @@ import {
   Search,
   CheckSquare,
   Hash,
-  Users,
+  Info,
   LogOut,
   User as UserIcon,
   Loader2,
@@ -22,6 +22,7 @@ import { useRunningTimer, useElapsed, stopAndLogTimer } from "@/lib/timer";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { UserProfileDialog } from "@/components/chat/user-profile-dialog";
 import type { PublicUser } from "@/types";
 
 interface SearchResults {
@@ -35,6 +36,7 @@ export function TopNav() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
   const [searching, setSearching] = useState(false);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +79,29 @@ export function TopNav() {
     setQuery("");
     setResults(null);
     router.push(href);
+  }
+
+  async function openChat(userId: string) {
+    setQuery("");
+    setResults(null);
+    const res = await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    if (res.ok) {
+      const { id } = await res.json();
+      router.push(`/messages?c=${id}`);
+    } else {
+      // Not friends yet (or an error) — open their profile so you can connect.
+      setProfileUserId(userId);
+    }
+  }
+
+  function openProfile(userId: string) {
+    setQuery("");
+    setResults(null);
+    setProfileUserId(userId);
   }
 
   const empty =
@@ -151,11 +176,25 @@ export function TopNav() {
             </ResultGroup>
             <ResultGroup label="People" show={results.people.length > 0}>
               {results.people.map((u) => (
-                <ResultRow key={u.id} onClick={() => go(`/friends`)}>
-                  <Avatar name={u.name} src={u.avatar} size="xs" />
-                  <span className="truncate">{u.name}</span>
-                  <Users size={12} className="ml-auto shrink-0 text-faint" />
-                </ResultRow>
+                <div
+                  key={u.id}
+                  className="flex items-center gap-1 rounded pr-1 transition-colors hover:bg-surface"
+                >
+                  <button
+                    onClick={() => openChat(u.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 rounded px-2 py-1.5 text-left text-[13px]"
+                  >
+                    <Avatar name={u.name} src={u.avatar} size="xs" />
+                    <span className="truncate">{u.name}</span>
+                  </button>
+                  <button
+                    onClick={() => openProfile(u.id)}
+                    title="View profile"
+                    className="flex h-7 shrink-0 items-center gap-1 rounded px-2 text-[12px] font-medium text-muted transition-colors hover:bg-elevated hover:text-text"
+                  >
+                    <Info size={13} /> Info
+                  </button>
+                </div>
               ))}
             </ResultGroup>
           </div>
@@ -172,6 +211,15 @@ export function TopNav() {
           <UserMenuCompact />
         </div>
       </div>
+
+      <UserProfileDialog
+        userId={profileUserId}
+        onClose={() => setProfileUserId(null)}
+        onMessage={(uid) => {
+          setProfileUserId(null);
+          openChat(uid);
+        }}
+      />
     </header>
   );
 }

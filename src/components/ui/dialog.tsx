@@ -14,12 +14,15 @@ export function DialogContent({
   children,
   showClose = true,
   title,
+  closeClassName,
 }: {
   className?: string;
   children: React.ReactNode;
   showClose?: boolean;
   /** Screen-reader-only title for dialogs that don't render a visible one. */
   title?: string;
+  /** Override the close button styling (e.g. white on a colored header). */
+  closeClassName?: string;
 }) {
   return (
     <DialogPrimitive.Portal>
@@ -43,7 +46,12 @@ export function DialogContent({
         )}
         {children}
         {showClose && (
-          <DialogPrimitive.Close className="absolute right-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface hover:text-text">
+          <DialogPrimitive.Close
+            className={cn(
+              "absolute right-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface hover:text-text",
+              closeClassName
+            )}
+          >
             <X size={16} />
           </DialogPrimitive.Close>
         )}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Search, UserPlus, Check, X, Clock, MessageSquare, Circle } from "lucide-react";
+import { Users, Search, UserPlus, Check, X, Clock, MessageSquare, Circle, Info } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { Avatar } from "@/components/ui/avatar";
@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
 import { onRealtime } from "@/components/layout/realtime";
+import { UserProfileDialog } from "@/components/chat/user-profile-dialog";
 import type { FriendItem, FriendRequestItem, PublicUser } from "@/types";
 
 type SearchStatus = "none" | "friends" | "incoming" | "outgoing" | "blocked";
@@ -39,6 +40,7 @@ export default function FriendsPage() {
   const [searching, setSearching] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     const [fRes, rRes] = await Promise.all([
@@ -341,6 +343,7 @@ export default function FriendsPage() {
                         friend={f}
                         busy={busyId === f.friendshipId}
                         onMessage={() => message(f.user.id)}
+                        onInfo={() => setProfileUserId(f.user.id)}
                         onRemove={() => setConfirmRemove({ id: f.friendshipId, name: f.user.name })}
                       />
                     ))}
@@ -365,6 +368,15 @@ export default function FriendsPage() {
         danger
         onConfirm={() => {
           if (confirmRemove) remove(confirmRemove.id, "Removed friend");
+        }}
+      />
+
+      <UserProfileDialog
+        userId={profileUserId}
+        onClose={() => setProfileUserId(null)}
+        onMessage={(uid) => {
+          setProfileUserId(null);
+          message(uid);
         }}
       />
     </>
@@ -402,24 +414,33 @@ function FriendCard({
   friend,
   busy,
   onMessage,
+  onInfo,
   onRemove,
 }: {
   friend: FriendItem;
   busy: boolean;
   onMessage: () => void;
+  onInfo: () => void;
   onRemove: () => void;
 }) {
   const u = friend.user;
   return (
     <div className="flex flex-col items-center rounded-lg border border-border bg-elevated p-4 text-center shadow-sm transition-shadow hover:shadow-md">
-      <Avatar name={u.name} src={u.avatar} size="xl" online={friend.online} />
-      <p className="mt-2 w-full truncate text-[13px] font-semibold">{u.name}</p>
+      <button onClick={onInfo} className="rounded-full" aria-label="View profile">
+        <Avatar name={u.name} src={u.avatar} size="xl" online={friend.online} />
+      </button>
+      <button onClick={onInfo} className="mt-2 w-full truncate text-[13px] font-semibold hover:underline">
+        {u.name}
+      </button>
       <p className="w-full truncate text-[11px] text-faint">
         {u.username ? `@${u.username}` : u.publicId}
       </p>
       <div className="mt-3 flex w-full gap-2">
         <Button size="sm" className="flex-1" onClick={onMessage}>
           <MessageSquare size={13} /> Message
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onInfo} aria-label="Profile info">
+          <Info size={13} />
         </Button>
         <Button size="sm" variant="secondary" onClick={onRemove} disabled={busy} aria-label="Remove">
           <X size={13} />

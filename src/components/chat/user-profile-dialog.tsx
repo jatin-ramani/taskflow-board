@@ -65,7 +65,11 @@ export function UserProfileDialog({
 
   return (
     <Dialog open={!!userId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm p-0" title="Profile">
+      <DialogContent
+        className="max-w-sm p-0"
+        title="Profile"
+        closeClassName="text-white/90 hover:bg-white/25 hover:text-white"
+      >
         {loading || !profile ? (
           <div className="flex h-56 items-center justify-center">
             <Spinner size={20} />
