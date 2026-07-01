@@ -324,9 +324,13 @@ function UserMenuCompact() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className={cn("rounded-full ring-2 ring-transparent transition", open && "ring-accent")}
+        aria-label="Account"
+        className={cn(
+          "flex shrink-0 rounded-full ring-offset-2 ring-offset-sidebar transition",
+          open ? "ring-2 ring-accent" : "ring-0"
+        )}
       >
-        <Avatar name={user.name ?? "?"} src={user.image} size="sm" />
+        <Avatar name={user.name ?? "?"} src={user.image} size="md" />
       </button>
       {open && (
         <div className="animate-slide-up absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-md border border-border bg-overlay p-1 shadow-popover">

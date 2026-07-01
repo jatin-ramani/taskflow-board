@@ -28,6 +28,7 @@ import {
   Target,
 } from "lucide-react";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   useRunningTimer,
   useElapsed,
@@ -305,7 +306,7 @@ export function TaskDetailPanel({
             {/* Two-pane body */}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
               {/* Left: fields + description + subtasks */}
-              <div className="flex shrink-0 flex-col px-6 py-5 md:w-[56%] md:overflow-y-auto md:border-r md:border-border">
+              <div className="flex shrink-0 flex-col px-4 py-5 sm:px-6 md:w-[56%] md:overflow-y-auto md:border-r md:border-border">
               {/* Complete + title */}
               <div className="flex items-start gap-3">
                 <button
@@ -439,40 +440,29 @@ export function TaskDetailPanel({
                     }
                   />
                 </PropRow>
-                <PropRow icon={<Timer size={14} />} label="Estimation Hours">
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      disabled={!canEdit}
-                      defaultValue={task.estimateMinutes ? task.estimateMinutes / 60 : ""}
-                      placeholder="No hours"
-                      onBlur={(e) => {
-                        const v = e.target.value ? Math.round(parseFloat(e.target.value) * 60) : null;
-                        if (v !== task.estimateMinutes) patch({ estimateMinutes: v });
-                      }}
-                      className={cn(fieldInputCls, "w-24")}
-                    />
-                    <span className="text-[12px] text-faint">hours</span>
-                  </div>
+                <PropRow icon={<Timer size={14} />} label="Estimation">
+                  <EstimationField
+                    minutes={task.estimateMinutes ?? null}
+                    disabled={!canEdit}
+                    onChange={(m) => patch({ estimateMinutes: m })}
+                  />
                 </PropRow>
                 <PropRow icon={<CalendarDays size={14} />} label="Start Date">
-                  <input
-                    type="date"
+                  <DatePicker
+                    value={task.startDate ? format(new Date(task.startDate), "yyyy-MM-dd") : null}
                     disabled={!canEdit}
-                    value={task.startDate ? format(new Date(task.startDate), "yyyy-MM-dd") : ""}
-                    onChange={(e) => patch({ startDate: e.target.value || null })}
-                    className={fieldInputCls}
+                    placeholder="No start date"
+                    max={task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : null}
+                    onChange={(v) => patch({ startDate: v })}
                   />
                 </PropRow>
                 <PropRow icon={<CalendarClock size={14} />} label="Due Date">
-                  <input
-                    type="date"
+                  <DatePicker
+                    value={task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : null}
                     disabled={!canEdit}
-                    value={task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : ""}
-                    onChange={(e) => patch({ dueDate: e.target.value || null })}
-                    className={fieldInputCls}
+                    placeholder="No due date"
+                    min={task.startDate ? format(new Date(task.startDate), "yyyy-MM-dd") : null}
+                    onChange={(v) => patch({ dueDate: v })}
                   />
                 </PropRow>
                 <PropRow icon={<Users size={14} />} label="Task Followers">
@@ -861,6 +851,59 @@ function TabBtn({ icon, label, active, onClick }: { icon: React.ReactNode; label
   );
 }
 
+function EstimationField({
+  minutes,
+  disabled,
+  onChange,
+}: {
+  minutes: number | null;
+  disabled: boolean;
+  onChange: (m: number | null) => void;
+}) {
+  const [h, setH] = useState(minutes ? String(Math.floor(minutes / 60)) : "");
+  const [m, setM] = useState(minutes ? String(minutes % 60) : "");
+  useEffect(() => {
+    setH(minutes ? String(Math.floor(minutes / 60)) : "");
+    setM(minutes ? String(minutes % 60) : "");
+  }, [minutes]);
+
+  function commit() {
+    const total = (parseInt(h || "0") || 0) * 60 + (parseInt(m || "0") || 0);
+    const next = total > 0 ? total : null;
+    if (next !== (minutes ?? null)) onChange(next);
+  }
+  const cls =
+    "h-8 w-12 rounded-md border border-transparent bg-transparent px-1.5 text-center text-[13px] outline-none transition-colors hover:border-border hover:bg-surface focus:border-accent focus:bg-surface disabled:opacity-70";
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="number"
+        min={0}
+        disabled={disabled}
+        value={h}
+        placeholder="0"
+        onChange={(e) => setH(e.target.value)}
+        onBlur={commit}
+        className={cls}
+      />
+      <span className="text-[12px] text-faint">h</span>
+      <input
+        type="number"
+        min={0}
+        max={59}
+        disabled={disabled}
+        value={m}
+        placeholder="0"
+        onChange={(e) => setM(e.target.value)}
+        onBlur={commit}
+        className={cls}
+      />
+      <span className="text-[12px] text-faint">m</span>
+    </div>
+  );
+}
+
 function PropRow({
   icon,
   label,
@@ -871,7 +914,7 @@ function PropRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] items-center gap-2 py-1">
+    <div className="grid grid-cols-[104px_1fr] items-center gap-2 py-1 sm:grid-cols-[140px_1fr]">
       <span className="flex items-center gap-2 text-[13px] text-muted">
         {icon && <span className="shrink-0 text-faint">{icon}</span>}
         <span className="truncate">{label}</span>

@@ -9,6 +9,7 @@ import { FullSpinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -239,11 +240,14 @@ function CreateGoalDialog({
           <div className="flex flex-col gap-3 sm:flex-row">
             <label className="flex flex-1 flex-col gap-1 text-[12px] text-muted">
               Target date
-              <Input
-                type="date"
-                value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
-              />
+              <div className="h-9 rounded-md border border-border bg-elevated">
+                <DatePicker
+                  value={targetDate || null}
+                  placeholder="No date"
+                  className="h-9"
+                  onChange={(v) => setTargetDate(v ?? "")}
+                />
+              </div>
             </label>
             <label className="flex flex-1 flex-col gap-1 text-[12px] text-muted">
               Project

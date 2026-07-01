@@ -289,11 +289,14 @@ export function ProjectView({ projectId }: { projectId: string }) {
             tags={project.tags}
             members={assignable}
             canEdit={canEdit}
+            dragEnabled={canEdit && !isFiltered}
             onTaskClick={setSelectedTaskId}
             onToggleComplete={toggleComplete}
             onQuickAdd={quickAdd}
             onUpdate={updateTask}
             onCreateTag={createTag}
+            onSectionsChange={setSections}
+            onPersistOrder={persistOrder}
           />
         )}
         {view === "calendar" && (

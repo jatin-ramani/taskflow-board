@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { MessageSquare, Plus, ArrowLeft, Users, Pin, Ghost } from "lucide-react";
+import { MessageSquare, Plus, ArrowLeft, Users, Pin, Ghost, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,6 +26,7 @@ export default function MessagesPage() {
   const [convos, setConvos] = useState<ConversationDTO[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(true);
+  const [chatSearch, setChatSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
   const [friends, setFriends] = useState<FriendItem[]>([]);
@@ -150,13 +151,31 @@ export default function MessagesPage() {
           </div>
         </div>
 
+        {/* Search */}
+        <div className="shrink-0 border-b border-border px-3 py-2 sm:px-4">
+          <div className="relative">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint"
+            />
+            <input
+              value={chatSearch}
+              onChange={(e) => setChatSearch(e.target.value)}
+              placeholder="Search chats…"
+              className="h-8 w-full rounded-md border border-border bg-surface pl-8 pr-3 text-[13px] outline-none transition-colors focus:border-accent"
+            />
+          </div>
+        </div>
+
         {loadingList ? (
           <div className="py-10">
             <Spinner size={18} className="mx-auto" />
           </div>
         ) : (
           <ConversationList
-            convos={convos}
+            convos={convos.filter((c) =>
+              c.title.toLowerCase().includes(chatSearch.trim().toLowerCase())
+            )}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onChanged={loadConvos}

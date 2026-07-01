@@ -133,7 +133,7 @@ export default function ProfilePage() {
             <div className="h-24 bg-linear-to-r from-accent via-accent to-[#7174d4] sm:h-28" />
             <div className="px-5 pb-5 sm:px-6">
               <div className="-mt-10 flex flex-col gap-3 sm:-mt-12 sm:flex-row sm:items-end sm:gap-5">
-                <div className="relative shrink-0">
+                <div className="relative w-fit shrink-0 self-start">
                   <Avatar
                     name={me.name}
                     src={me.avatar}

@@ -6,6 +6,7 @@ import { Trash2, Check, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
@@ -92,7 +93,7 @@ export function GoalDetailDialog({
 
   return (
     <Dialog open={!!goalId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" title="Goal details">
         {loading || !goal ? (
           <div className="flex h-48 items-center justify-center">
             <Spinner size={20} />
@@ -146,14 +147,15 @@ export function GoalDetailDialog({
                     />
                   </div>
                 </label>
-                <label className="flex items-center gap-2 text-[12px] text-muted">
+                <label className="flex flex-1 items-center gap-2 text-[12px] text-muted">
                   Target
-                  <input
-                    type="date"
-                    value={goal.targetDate ? format(new Date(goal.targetDate), "yyyy-MM-dd") : ""}
-                    onChange={(e) => patch({ targetDate: e.target.value || null })}
-                    className={fieldCls}
-                  />
+                  <div className="min-w-0 flex-1 rounded-md border border-border bg-surface">
+                    <DatePicker
+                      value={goal.targetDate ? format(new Date(goal.targetDate), "yyyy-MM-dd") : null}
+                      placeholder="No date"
+                      onChange={(v) => patch({ targetDate: v })}
+                    />
+                  </div>
                 </label>
               </div>
 

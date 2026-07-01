@@ -13,10 +13,13 @@ export function DialogContent({
   className,
   children,
   showClose = true,
+  title,
 }: {
   className?: string;
   children: React.ReactNode;
   showClose?: boolean;
+  /** Screen-reader-only title for dialogs that don't render a visible one. */
+  title?: string;
 }) {
   return (
     <DialogPrimitive.Portal>
@@ -28,6 +31,9 @@ export function DialogContent({
           className
         )}
       >
+        {title && (
+          <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+        )}
         {children}
         {showClose && (
           <DialogPrimitive.Close className="absolute right-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface hover:text-text">

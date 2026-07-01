@@ -308,13 +308,16 @@ export function MessageList({
                   {!editing && (
                     <div
                       className={cn(
-                        "absolute bottom-full right-0 z-20 pb-1.5 transition-opacity",
+                        "absolute bottom-full z-20 pb-1.5 transition-opacity",
+                        // Anchor to the message's own side so the bar extends into
+                        // free space and never runs off the screen edge on mobile.
+                        mine ? "right-0" : "left-0",
                         openMenuId === m.id
                           ? "opacity-100"
                           : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100"
                       )}
                     >
-                      <div className="flex items-center gap-0.5 rounded-md border border-border bg-overlay p-0.5 shadow-md">
+                      <div className="flex flex-nowrap items-center gap-0.5 whitespace-nowrap rounded-md border border-border bg-overlay p-0.5 shadow-md">
                       {QUICK_REACTIONS.slice(0, 4).map((e) => (
                         <button
                           key={e}

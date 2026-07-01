@@ -7,6 +7,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   closestCorners,
   type DragStartEvent,
   type DragOverEvent,
@@ -20,6 +21,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
 import { QuickAdd } from "./quick-add";
 import { useRunningTimer } from "@/lib/timer";
@@ -36,6 +38,22 @@ interface Props {
   onQuickAdd: (sectionId: string, title: string) => void;
   onAddSection: () => void;
   canEdit: boolean;
+}
+
+// Whole column is a drop target so tasks can be dropped into empty sections too.
+function ColumnBody({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2 transition-colors",
+        isOver && "bg-accent-soft/50"
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 function SortableTaskCard({
@@ -176,7 +194,7 @@ export function KanbanBoard({
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
+            <ColumnBody id={section.id}>
               <SortableContext
                 items={section.tasks.map((t) => t.id)}
                 strategy={verticalListSortingStrategy}
@@ -199,7 +217,7 @@ export function KanbanBoard({
                   Drop tasks here
                 </div>
               )}
-            </div>
+            </ColumnBody>
 
             {canEdit && (
               <div className="px-2 pb-2">

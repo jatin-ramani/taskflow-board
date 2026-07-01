@@ -3,6 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  closestCorners,
+  type DragOverEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   ChevronDown,
   ChevronRight,
   Check,
@@ -10,10 +27,12 @@ import {
   Tag as TagIcon,
   Flag,
   Lock,
+  GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { PriorityDot } from "@/components/board/task-card";
 import { QuickAdd } from "@/components/board/quick-add";
 import { useRunningTimer } from "@/lib/timer";
@@ -45,26 +64,83 @@ export function PmsListView({
   tags,
   members,
   canEdit,
+  dragEnabled = false,
   onTaskClick,
   onToggleComplete,
   onQuickAdd,
   onUpdate,
   onCreateTag,
+  onSectionsChange,
+  onPersistOrder,
 }: {
   sections: SectionDTO[];
   milestones: MilestoneDTO[];
   tags: TagDTO[];
   members: PublicUser[];
   canEdit: boolean;
+  dragEnabled?: boolean;
   onTaskClick: (id: string) => void;
   onToggleComplete: (task: TaskCardDTO) => void;
   onQuickAdd: (sectionId: string, title: string) => void;
   onUpdate: (taskId: string, patch: Record<string, unknown>) => void;
   onCreateTag: (name: string) => Promise<TagDTO | null>;
+  onSectionsChange?: (next: SectionDTO[]) => void;
+  onPersistOrder?: (sectionId: string, taskIds: string[]) => void;
 }) {
   const [edit, setEdit] = useState<string | null>(null); // `${taskId}:${field}`
   const tagById = new Map(tags.map((t) => [t.id, t]));
   const msById = new Map(milestones.map((m) => [m.id, m]));
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
+
+  const findSection = (id: string): SectionDTO | undefined => {
+    if (sections.some((s) => s.id === id)) return sections.find((s) => s.id === id);
+    return sections.find((s) => s.tasks.some((t) => t.id === id));
+  };
+
+  function handleDragOver(e: DragOverEvent) {
+    const { active, over } = e;
+    if (!over) return;
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    const from = findSection(activeId);
+    const to = findSection(overId);
+    if (!from || !to || from.id === to.id) return;
+
+    const next = sections.map((s) => ({ ...s, tasks: [...s.tasks] }));
+    const fromS = next.find((s) => s.id === from.id)!;
+    const toS = next.find((s) => s.id === to.id)!;
+    const idx = fromS.tasks.findIndex((t) => t.id === activeId);
+    if (idx === -1) return;
+    const [moved] = fromS.tasks.splice(idx, 1);
+    moved.sectionId = toS.id;
+    const overIdx = toS.tasks.findIndex((t) => t.id === overId);
+    if (overIdx === -1) toS.tasks.push(moved);
+    else toS.tasks.splice(overIdx, 0, moved);
+    onSectionsChange?.(next);
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over) return;
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    const section = findSection(activeId);
+    if (!section) return;
+
+    let finalTasks = section.tasks;
+    const oldIdx = section.tasks.findIndex((t) => t.id === activeId);
+    const newIdx = section.tasks.findIndex((t) => t.id === overId);
+    if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+      finalTasks = arrayMove(section.tasks, oldIdx, newIdx);
+      onSectionsChange?.(
+        sections.map((s) => (s.id === section.id ? { ...s, tasks: finalTasks } : s))
+      );
+    }
+    onPersistOrder?.(section.id, finalTasks.map((t) => t.id));
+  }
 
   return (
     <div className="h-full overflow-auto">
@@ -87,26 +163,34 @@ export function PmsListView({
           <Col>Work logs</Col>
         </div>
 
-        {sections.map((section) => (
-          <SectionGroup
-            key={section.id}
-            section={section}
-            sections={sections}
-            milestones={milestones}
-            tags={tags}
-            tagById={tagById}
-            msById={msById}
-            members={members}
-            canEdit={canEdit}
-            edit={edit}
-            setEdit={setEdit}
-            onTaskClick={onTaskClick}
-            onToggleComplete={onToggleComplete}
-            onQuickAdd={onQuickAdd}
-            onUpdate={onUpdate}
-            onCreateTag={onCreateTag}
-          />
-        ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          {sections.map((section) => (
+            <SectionGroup
+              key={section.id}
+              section={section}
+              sections={sections}
+              milestones={milestones}
+              tags={tags}
+              tagById={tagById}
+              msById={msById}
+              members={members}
+              canEdit={canEdit}
+              dragEnabled={dragEnabled}
+              edit={edit}
+              setEdit={setEdit}
+              onTaskClick={onTaskClick}
+              onToggleComplete={onToggleComplete}
+              onQuickAdd={onQuickAdd}
+              onUpdate={onUpdate}
+              onCreateTag={onCreateTag}
+            />
+          ))}
+        </DndContext>
       </div>
     </div>
   );
@@ -125,6 +209,7 @@ function SectionGroup(props: {
   msById: Map<string, MilestoneDTO>;
   members: PublicUser[];
   canEdit: boolean;
+  dragEnabled: boolean;
   edit: string | null;
   setEdit: (v: string | null) => void;
   onTaskClick: (id: string) => void;
@@ -133,8 +218,9 @@ function SectionGroup(props: {
   onUpdate: (taskId: string, patch: Record<string, unknown>) => void;
   onCreateTag: (name: string) => Promise<TagDTO | null>;
 }) {
-  const { section } = props;
+  const { section, dragEnabled } = props;
   const [open, setOpen] = useState(true);
+  const { setNodeRef, isOver } = useDroppable({ id: section.id });
 
   return (
     <div>
@@ -148,16 +234,26 @@ function SectionGroup(props: {
       </button>
 
       {open && (
-        <>
-          {section.tasks.map((task) => (
-            <Row key={task.id} task={task} {...props} />
-          ))}
+        <div ref={setNodeRef} className={cn("transition-colors", isOver && "bg-accent-soft/30")}>
+          <SortableContext
+            items={section.tasks.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {section.tasks.map((task) => (
+              <Row key={task.id} task={task} {...props} />
+            ))}
+          </SortableContext>
+          {section.tasks.length === 0 && (
+            <div className="border-b border-border/60 px-4 py-4 text-center text-[12px] text-faint">
+              {dragEnabled ? "Drop tasks here" : "No tasks"}
+            </div>
+          )}
           {props.canEdit && (
             <div className="border-b border-border px-4 py-1">
               <QuickAdd onAdd={(title) => props.onQuickAdd(section.id, title)} />
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -172,6 +268,7 @@ function Row({
   msById,
   members,
   canEdit,
+  dragEnabled,
   edit,
   setEdit,
   onTaskClick,
@@ -187,6 +284,7 @@ function Row({
   msById: Map<string, MilestoneDTO>;
   members: PublicUser[];
   canEdit: boolean;
+  dragEnabled: boolean;
   edit: string | null;
   setEdit: (v: string | null) => void;
   onTaskClick: (id: string) => void;
@@ -196,6 +294,8 @@ function Row({
 }) {
   const done = !!task.completedAt;
   const statusLocked = useRunningTimer()?.taskId === task.id;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: task.id, disabled: !dragEnabled });
   const key = (f: string) => `${task.id}:${f}`;
   const editing = (f: string) => edit === key(f);
   const startEdit = (f: string) => canEdit && setEdit(key(f));
@@ -208,9 +308,30 @@ function Row({
   const taskTags = task.tagIds.map((id) => tagById.get(id)).filter(Boolean) as TagDTO[];
 
   return (
-    <div className={cn(GRID, "border-b border-border/60 px-4 hover:bg-surface/40")}>
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={cn(
+        GRID,
+        "group border-b border-border/60 px-4 hover:bg-surface/40",
+        isDragging && "bg-surface opacity-60"
+      )}
+    >
       {/* Name */}
-      <div className="flex items-center gap-2 py-2 pr-2">
+      <div className="flex items-center gap-1 py-2 pr-2">
+        {dragEnabled && (
+          <span
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder"
+            className={cn(
+              "flex w-4 shrink-0 touch-none items-center justify-center text-faint opacity-0 transition-opacity group-hover:opacity-100",
+              isDragging ? "cursor-grabbing" : "cursor-grab"
+            )}
+          >
+            <GripVertical size={14} />
+          </span>
+        )}
         <button
           onClick={() => onToggleComplete(task)}
           className={cn(
@@ -251,19 +372,13 @@ function Row({
 
       {/* Due */}
       <Cell>
-        {editing("due") ? (
-          <input
-            type="date"
-            autoFocus
-            defaultValue={task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : ""}
-            onBlur={(e) => set({ dueDate: e.target.value || null })}
-            className="h-6 w-full rounded border border-accent bg-surface px-1 text-[12px] outline-none"
-          />
-        ) : (
-          <button onClick={() => startEdit("due")} className="w-full text-left text-[12px]">
-            {task.dueDate ? format(new Date(task.dueDate), "MMM d") : <span className="text-faint">—</span>}
-          </button>
-        )}
+        <DatePicker
+          value={task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : null}
+          disabled={!canEdit}
+          placeholder="—"
+          className="text-[12px]"
+          onChange={(v) => onUpdate(task.id, { dueDate: v })}
+        />
       </Cell>
 
       {/* Type */}

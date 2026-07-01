@@ -28,9 +28,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <AppSidebar />
           </div>
 
-          {/* Mobile drawer */}
+          {/* Mobile drawer — starts below the top navbar so it stays visible */}
           {open && (
-            <div className="fixed inset-0 z-50 md:hidden">
+            <div className="fixed inset-x-0 bottom-0 top-12 z-40 md:hidden">
               <div
                 className="animate-fade-in absolute inset-0 bg-black/50"
                 onClick={() => setOpen(false)}

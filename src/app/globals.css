@@ -248,6 +248,17 @@
   white-space: nowrap;
 }
 
+/* Hide number-input spinner buttons app-wide. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Chat markdown: break long URLs/words so they never overflow the bubble. */
 .chat-md {
   overflow-wrap: anywhere;

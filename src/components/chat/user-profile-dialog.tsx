@@ -32,7 +32,7 @@ export function UserProfileDialog({
 
   return (
     <Dialog open={!!userId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm" title="Profile">
         {loading || !profile ? (
           <div className="flex h-48 items-center justify-center">
             <Spinner size={20} />

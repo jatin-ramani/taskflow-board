@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { EmptyState } from "@/components/common/empty-state";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import type { SectionDTO, MilestoneDTO } from "@/types";
@@ -262,7 +263,14 @@ function MilestoneDialog({
           </div>
           <label className="flex flex-col gap-1 text-[12px] text-muted">
             Due date
-            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <div className="h-9 rounded-md border border-border bg-surface">
+              <DatePicker
+                value={dueDate || null}
+                placeholder="No date"
+                className="h-9"
+                onChange={(v) => setDueDate(v ?? "")}
+              />
+            </div>
           </label>
           <div className="mt-1 flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>Cancel</Button>

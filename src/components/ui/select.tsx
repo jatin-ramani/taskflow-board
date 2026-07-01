@@ -132,7 +132,7 @@ export function Select({
                   key={o.value}
                   type="button"
                   onClick={() => {
-                    onChange(o.value);
+                    if (o.value !== value) onChange(o.value);
                     setOpen(false);
                   }}
                   className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-surface"
