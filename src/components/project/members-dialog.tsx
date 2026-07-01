@@ -55,6 +55,9 @@ export function MembersDialog({
       toast(okMsg, "success");
       onChanged();
       refreshSidebar();
+    } else {
+      toast("Something went wrong — please try again", "error");
+      onChanged();
     }
   }
 

@@ -69,7 +69,10 @@ export function CalendarView({
         ))}
       </div>
 
-      <div className="grid flex-1 grid-cols-7 grid-rows-6 overflow-auto">
+      <div
+        className="grid flex-1 grid-cols-7 overflow-auto"
+        style={{ gridTemplateRows: `repeat(${Math.ceil(days.length / 7)}, minmax(96px, 1fr))` }}
+      >
         {days.map((day) => {
           const dayTasks = tasks.filter((t) => isSameDay(new Date(t.dueDate!), day));
           const inMonth = isSameMonth(day, month);

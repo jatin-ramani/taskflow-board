@@ -25,6 +25,13 @@ export function DialogContent({
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-50 bg-black/55" />
       <DialogPrimitive.Content
+        onInteractOutside={(e) => {
+          // Our Select menus / DatePicker calendars / emoji pickers render to
+          // document.body, so Radix treats clicking them as "outside" and would
+          // close the dialog. Keep it open when the interaction is inside one.
+          const target = e.detail.originalEvent.target as Element | null;
+          if (target?.closest?.("[data-portal-popover]")) e.preventDefault();
+        }}
         className={cn(
           "animate-slide-up fixed left-1/2 top-1/2 z-50 w-[calc(100vw-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2",
           "max-h-[calc(100dvh-2rem)] overflow-hidden rounded-xl border border-border bg-elevated shadow-popover focus:outline-none",

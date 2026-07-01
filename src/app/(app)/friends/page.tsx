@@ -58,18 +58,33 @@ export default function FriendsPage() {
     loadAll();
   }, [loadAll]);
 
-  // Live presence: flip a friend's online dot the moment they connect/disconnect.
+  // Live updates: presence dots instantly, and refetch on any notification
+  // (e.g. an incoming request or someone accepting yours) so the lists update
+  // without a manual refresh.
   useEffect(() => {
     return onRealtime((p) => {
       if (p.type === "presence" && p.userId) {
         setFriends((prev) =>
-          prev.map((f) =>
-            f.user.id === p.userId ? { ...f, online: !!p.online } : f
-          )
+          prev.map((f) => (f.user.id === p.userId ? { ...f, online: !!p.online } : f))
         );
+      } else if (p.type === "notification") {
+        loadAll();
       }
     });
-  }, []);
+  }, [loadAll]);
+
+  // Fallback poll + refresh on focus (covers serverless where SSE can't reach).
+  useEffect(() => {
+    const tick = () => {
+      if (!document.hidden) loadAll();
+    };
+    const t = setInterval(tick, 10000);
+    window.addEventListener("focus", tick);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("focus", tick);
+    };
+  }, [loadAll]);
 
   const runSearch = useCallback(async (q: string) => {
     if (q.trim().length < 1) {

@@ -45,7 +45,7 @@ export function Select({
     const r = btnRef.current?.getBoundingClientRect();
     if (!r) return;
     const width = Math.max(r.width, 190);
-    const left = Math.min(r.left, window.innerWidth - width - 8);
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
     setCoords({ top: r.bottom + 4, left, width });
   }
 
@@ -111,6 +111,7 @@ export function Select({
         createPortal(
           <div
             ref={menuRef}
+            data-portal-popover
             style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width, zIndex: 70 }}
             className="animate-slide-up overflow-hidden rounded-md border border-border bg-overlay p-1 shadow-popover"
           >

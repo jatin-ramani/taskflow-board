@@ -65,13 +65,25 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const name = session?.user?.name?.split(" ")[0] ?? "there";
   const [data, setData] = useState<DashData | null>(null);
+  const [error, setError] = useState(false);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    let alive = true;
+    setError(false);
+    setData(null);
     fetch("/api/dashboard")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setData)
-      .catch(() => {});
-  }, []);
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
+      .then((d) => {
+        if (alive) setData(d);
+      })
+      .catch(() => {
+        if (alive) setError(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [tick]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -86,7 +98,17 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {!data ? (
+      {error ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3">
+          <p className="text-[13px] text-muted">Couldn&apos;t load your dashboard.</p>
+          <button
+            onClick={() => setTick((t) => t + 1)}
+            className="rounded-md border border-border px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-surface"
+          >
+            Retry
+          </button>
+        </div>
+      ) : !data ? (
         <div className="flex flex-1 items-center justify-center">
           <Spinner size={22} />
         </div>

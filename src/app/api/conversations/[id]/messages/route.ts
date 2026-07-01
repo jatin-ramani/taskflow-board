@@ -89,6 +89,7 @@ export async function GET(
               userId: true,
               lastReadAt: true,
               lastDeliveredAt: true,
+              joinedAt: true,
               user: { select: { ...publicUserSelect, lastSeenAt: true } },
             },
           },
@@ -102,9 +103,12 @@ export async function GET(
     const otherParts = (convo?.participants ?? []).filter((p) => p.userId !== me.id);
     function statusFor(m: { senderId: string; createdAt: Date }): MessageStatus | null {
       if (m.senderId !== me.id) return null;
-      if (otherParts.length === 0) return "sent";
-      if (otherParts.every((p) => p.lastReadAt && p.lastReadAt >= m.createdAt)) return "seen";
-      if (otherParts.every((p) => p.lastDeliveredAt && p.lastDeliveredAt >= m.createdAt))
+      // Only members present when the message was sent count toward delivered/
+      // seen — adding someone to a group later must not un-see old messages.
+      const relevant = otherParts.filter((p) => p.joinedAt <= m.createdAt);
+      if (relevant.length === 0) return "sent";
+      if (relevant.every((p) => p.lastReadAt && p.lastReadAt >= m.createdAt)) return "seen";
+      if (relevant.every((p) => p.lastDeliveredAt && p.lastDeliveredAt >= m.createdAt))
         return "delivered";
       return "sent";
     }
@@ -189,25 +193,33 @@ export async function POST(
     const vanish = settings?.vanishMode ?? false;
 
     const now = new Date();
-    const [message] = await prisma.$transaction([
-      prisma.message.create({
-        data: {
-          conversationId: id,
-          senderId: me.id,
-          content,
-          attachments,
-          replyToId,
-          vanish,
-          deletedAt: null,
-        },
-        select: messageSelect,
-      }),
+    // NOT a transaction: MongoDB multi-document transactions abort with a
+    // "write conflict" when concurrent polling writes touch the same
+    // participant/conversation docs — which was making sends fail under fast
+    // polling. These three writes don't need to be atomic. Create the message
+    // (the part that must succeed), then best-effort update the side records;
+    // single-document writes auto-retry on conflict, so they won't 500.
+    const message = await prisma.message.create({
+      data: {
+        conversationId: id,
+        senderId: me.id,
+        content,
+        attachments,
+        replyToId,
+        vanish,
+        deletedAt: null,
+      },
+      select: messageSelect,
+    });
+    await Promise.all([
       prisma.conversation.update({ where: { id }, data: { lastMessageAt: now } }),
       prisma.conversationParticipant.updateMany({
         where: { conversationId: id, userId: me.id },
         data: { lastReadAt: now },
       }),
-    ]);
+    ]).catch(() => {
+      /* side records are non-critical; the message is already saved */
+    });
 
     const others = await prisma.conversationParticipant.findMany({
       where: { conversationId: id, userId: { not: me.id } },

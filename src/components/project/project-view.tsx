@@ -100,22 +100,31 @@ export function ProjectView({ projectId }: { projectId: string }) {
 
   async function toggleComplete(task: TaskCardDTO) {
     const completed = !task.completedAt;
+    const stamp = completed ? new Date().toISOString() : null;
     // optimistic
     setSections((prev) =>
       prev.map((s) => ({
         ...s,
-        tasks: s.tasks.map((t) =>
-          t.id === task.id
-            ? { ...t, completedAt: completed ? new Date().toISOString() : null }
-            : t
-        ),
+        tasks: s.tasks.map((t) => (t.id === task.id ? { ...t, completedAt: stamp } : t)),
       }))
     );
-    await fetch(`/api/tasks/${task.id}`, {
+    const res = await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed }),
     });
+    if (!res.ok) {
+      // Revert on failure so the card doesn't get stuck in the wrong column.
+      setSections((prev) =>
+        prev.map((s) => ({
+          ...s,
+          tasks: s.tasks.map((t) =>
+            t.id === task.id ? { ...t, completedAt: task.completedAt } : t
+          ),
+        }))
+      );
+      toast("Couldn't update the task — try again", "error");
+    }
   }
 
   async function quickAdd(sectionId: string, title: string) {

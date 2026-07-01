@@ -167,7 +167,9 @@ export interface MessageReplyPreview {
   senderName: string;
 }
 
-export type MessageStatus = "sent" | "delivered" | "seen";
+// "sending" / "failed" are client-only optimistic states; the server only ever
+// reports sent / delivered / seen.
+export type MessageStatus = "sending" | "sent" | "delivered" | "seen" | "failed";
 
 export interface MessageDTO {
   id: string;

@@ -12,16 +12,19 @@ import { startConversationSchema, createGroupSchema } from "@/lib/validations";
 import { pairKey, isOnline } from "@/lib/utils";
 
 // GET /api/conversations — DMs + groups with last message, unread, presence.
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const me = await requireUser();
 
-    // Syncing the list = the recipient's client has received everything up to
-    // now, which drives "delivered" (✓✓) receipts on the sender's side.
-    await prisma.conversationParticipant.updateMany({
-      where: { userId: me.id },
-      data: { lastDeliveredAt: new Date() },
-    });
+    // Only the active messages view passes ?deliver=1, so the recipient's
+    // "delivered" (✓✓) receipts are recorded there — background/sidebar polls of
+    // this endpoint stay read-only and don't cause write churn/contention.
+    if (req.nextUrl.searchParams.get("deliver") === "1") {
+      await prisma.conversationParticipant.updateMany({
+        where: { userId: me.id },
+        data: { lastDeliveredAt: new Date() },
+      });
+    }
 
     const convos = await prisma.conversation.findMany({
       where: { participants: { some: { userId: me.id } } },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
@@ -79,6 +79,39 @@ export function ProjectInfo({
       .catch(() => {});
   }, [canManage]);
 
+  // Re-sync the form when the project's server-side values change (after a save,
+  // or an external edit) so a background refetch never leaves the fields stale.
+  // Guarded by a ref so refetches that DON'T touch these fields (e.g. member
+  // changes) don't clobber the user's in-progress edits.
+  const serverRef = useRef({
+    name: project.name,
+    description: project.description ?? "",
+    color: project.color,
+    dueDate: initialDue,
+  });
+  useEffect(() => {
+    const nextDue = project.dueDate ? project.dueDate.slice(0, 10) : null;
+    const s = serverRef.current;
+    if (
+      project.name === s.name &&
+      (project.description ?? "") === s.description &&
+      project.color === s.color &&
+      nextDue === s.dueDate
+    ) {
+      return;
+    }
+    serverRef.current = {
+      name: project.name,
+      description: project.description ?? "",
+      color: project.color,
+      dueDate: nextDue,
+    };
+    setName(project.name);
+    setDescription(project.description ?? "");
+    setColor(project.color);
+    setDueDate(nextDue);
+  }, [project.name, project.description, project.color, project.dueDate, initialDue]);
+
   const dirty =
     name.trim() !== project.name ||
     (description.trim() || "") !== (project.description ?? "") ||
@@ -122,6 +155,11 @@ export function ProjectInfo({
       toast(okMsg, "success");
       onChanged();
       refreshSidebar();
+    } else {
+      // Surface the failure and refetch so the UI (e.g. a role dropdown) snaps
+      // back to the real server state instead of silently showing a stale value.
+      toast("Something went wrong — please try again", "error");
+      onChanged();
     }
   }
 

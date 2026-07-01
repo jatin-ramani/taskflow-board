@@ -131,6 +131,7 @@ export function DatePicker({
         createPortal(
           <div
             ref={popRef}
+            data-portal-popover
             style={{ position: "fixed", top: coords.top, left: coords.left, width: 250, zIndex: 70 }}
             className="animate-slide-up rounded-md border border-border bg-overlay p-2 shadow-popover"
           >

@@ -9,6 +9,8 @@ import {
   Trash2,
   Check,
   CheckCheck,
+  Clock,
+  AlertCircle,
   X,
   Reply,
   Pin,
@@ -40,6 +42,7 @@ export function MessageList({
   onDelete,
   onReply,
   onPin,
+  onRetry,
   onOpenProfile,
 }: {
   messages: MessageDTO[];
@@ -53,6 +56,7 @@ export function MessageList({
   onDelete: (id: string) => void;
   onReply: (m: MessageDTO) => void;
   onPin: (id: string) => void;
+  onRetry?: (m: MessageDTO) => void;
   onOpenProfile?: (userId: string) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -333,6 +337,9 @@ export function MessageList({
                               (edited)
                             </span>
                           )}
+                          {mine && m.status === "sending" && (
+                            <Clock size={12} className="text-white/55" />
+                          )}
                           {mine && m.status === "sent" && (
                             <Check size={13} className="text-white/55" />
                           )}
@@ -342,14 +349,19 @@ export function MessageList({
                           {mine && m.status === "seen" && (
                             <CheckCheck size={14} className="text-sky-300" />
                           )}
+                          {mine && m.status === "failed" && (
+                            <AlertCircle size={13} className="text-red-200" />
+                          )}
                         </div>
                       )}
                     </div>
                   )}
 
                   {/* Floating action bar — sits above the bubble; the pb bridge
-                      keeps it hoverable without overlapping the message. */}
-                  {!editing && (
+                      keeps it hoverable without overlapping the message. Hidden
+                      for optimistic (sending/failed) messages, which have a temp
+                      id the server wouldn't recognise. */}
+                  {!editing && m.status !== "sending" && m.status !== "failed" && (
                     <div
                       className={cn(
                         "absolute bottom-full z-20 pb-1.5 transition-opacity",
@@ -414,6 +426,15 @@ export function MessageList({
                     </div>
                   )}
                 </div>
+
+                {mine && m.status === "failed" && (
+                  <button
+                    onClick={() => onRetry?.(m)}
+                    className="mt-1 flex items-center gap-1 text-[11px] font-medium text-danger transition-opacity hover:opacity-80"
+                  >
+                    <AlertCircle size={12} /> Not sent · Tap to retry
+                  </button>
+                )}
 
                 {reactionEntries.length > 0 && (
                   <div

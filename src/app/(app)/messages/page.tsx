@@ -6,6 +6,7 @@ import { MessageSquare, Plus, ArrowLeft, Users, Pin, Ghost, Search } from "lucid
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
+import { useToast } from "@/components/ui/toast";
 import { EmptyState } from "@/components/common/empty-state";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
 import { onRealtime } from "@/components/layout/realtime";
@@ -17,7 +18,14 @@ import { GroupPeople } from "@/components/chat/group-people";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { UserProfileDialog } from "@/components/chat/user-profile-dialog";
 import { ThreadMenu } from "@/components/chat/thread-menu";
-import type { ConversationDTO, ConversationMeta, MessageDTO, FriendItem } from "@/types";
+import type {
+  ConversationDTO,
+  ConversationMeta,
+  MessageDTO,
+  MessageReplyPreview,
+  FriendItem,
+  PublicUser,
+} from "@/types";
 
 export default function MessagesPage() {
   const { data: session } = useSession();
@@ -34,7 +42,9 @@ export default function MessagesPage() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const loadConvos = useCallback(async () => {
-    const res = await fetch("/api/conversations");
+    // deliver=1: only the active messages view records "delivered" receipts,
+    // so background/sidebar polling of this endpoint stays read-only.
+    const res = await fetch("/api/conversations?deliver=1");
     if (res.ok) setConvos(await res.json());
     setLoadingList(false);
   }, []);
@@ -51,13 +61,18 @@ export default function MessagesPage() {
   }, [loadConvos]);
 
   useEffect(() => {
+    const tick = () => {
+      if (!document.hidden) loadConvos();
+    };
     const off = onRealtime((p) => {
       if (p.type === "message" || p.type === "presence") loadConvos();
     });
-    const t = setInterval(loadConvos, 20000);
+    const t = setInterval(tick, 8000);
+    window.addEventListener("focus", tick);
     return () => {
       off();
       clearInterval(t);
+      window.removeEventListener("focus", tick);
     };
   }, [loadConvos]);
 
@@ -239,12 +254,16 @@ function Thread({
   onActivity: () => void;
   onOpenProfile: (userId: string) => void;
 }) {
+  const { data: session } = useSession();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<MessageDTO[]>([]);
+  const [pending, setPending] = useState<MessageDTO[]>([]);
   const [meta, setMeta] = useState<ConversationMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<MessageDTO | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastCountRef = useRef(0);
+  const lastSigRef = useRef("");
+  const tempIdRef = useRef(0);
   const vanishRef = useRef(false);
 
   const scrollToBottom = useCallback((smooth = false) => {
@@ -259,16 +278,26 @@ function Thread({
   const load = useCallback(
     async (markRead: boolean) => {
       const res = await fetch(`/api/conversations/${conversationId}/messages`);
+      let changed = false;
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages);
+        const msgs: MessageDTO[] = data.messages;
+        setMessages(msgs);
         setMeta(data.meta);
-        if (data.messages.length !== lastCountRef.current) {
-          lastCountRef.current = data.messages.length;
+        // Drop optimistic messages the server has now confirmed.
+        setPending((prev) => prev.filter((p) => !msgs.some((m) => m.id === p.id)));
+        // Signature = count + last message id, so new messages AND deletions are
+        // detected (a plain count check misses add+delete between two polls).
+        const sig = `${msgs.length}:${msgs[msgs.length - 1]?.id ?? ""}`;
+        changed = sig !== lastSigRef.current;
+        if (changed) {
+          lastSigRef.current = sig;
           scrollToBottom();
         }
       }
-      if (markRead) {
+      // Only mark read when there's actually something new — avoids a DB write
+      // on every 3s poll, which added write contention and slowed things down.
+      if (markRead && changed) {
         await fetch(`/api/conversations/${conversationId}/read`, { method: "POST" });
         onActivity();
       }
@@ -279,18 +308,27 @@ function Thread({
 
   useEffect(() => {
     setLoading(true);
-    lastCountRef.current = 0;
+    lastSigRef.current = "";
     load(true);
   }, [load]);
 
   useEffect(() => {
+    const tick = () => {
+      if (!document.hidden) load(true);
+    };
     const off = onRealtime((p) => {
       if (p.type === "message" && p.conversationId === conversationId) load(true);
     });
-    const t = setInterval(() => load(true), 15000);
+    // Fast poll while the chat is open (near-instant even where SSE can't reach,
+    // e.g. serverless); pause when the tab is hidden, refresh the moment it's back.
+    const t = setInterval(tick, 3000);
+    window.addEventListener("focus", tick);
+    document.addEventListener("visibilitychange", tick);
     return () => {
       off();
       clearInterval(t);
+      window.removeEventListener("focus", tick);
+      document.removeEventListener("visibilitychange", tick);
     };
   }, [load, conversationId]);
 
@@ -312,21 +350,69 @@ function Thread({
     };
   }, [conversationId]);
 
-  async function send(content: string, attachments: string[]) {
-    const replyToId = replyingTo?.id ?? null;
-    setReplyingTo(null);
-    const res = await fetch(`/api/conversations/${conversationId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, attachments, replyToId }),
-    });
-    if (res.ok) {
-      const msg: MessageDTO = await res.json();
-      setMessages((prev) => [...prev, msg]);
-      lastCountRef.current += 1;
-      scrollToBottom(true);
+  // Optimistic send: the message appears instantly as "sending", becomes
+  // "sent" when the server confirms, or "failed" (with tap-to-retry) on error —
+  // so a dropped request never silently loses your message.
+  async function post(
+    tempId: string,
+    content: string,
+    attachments: string[],
+    reply: MessageReplyPreview | null
+  ) {
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, attachments, replyToId: reply?.id ?? null }),
+      });
+      if (!res.ok) throw new Error("send failed");
+      const real: MessageDTO = await res.json();
+      setPending((prev) => prev.map((m) => (m.id === tempId ? real : m)));
       onActivity();
+    } catch {
+      setPending((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m))
+      );
+      toast("Message didn't send — tap it to retry", "error");
     }
+  }
+
+  function send(content: string, attachments: string[]) {
+    const reply: MessageReplyPreview | null = replyingTo
+      ? { id: replyingTo.id, senderName: replyingTo.sender.name, content: replyingTo.content }
+      : null;
+    setReplyingTo(null);
+    const tempId = `temp-${Date.now()}-${tempIdRef.current++}`;
+    const optimistic: MessageDTO = {
+      id: tempId,
+      content,
+      senderId: meId,
+      sender: {
+        id: meId,
+        name: session?.user?.name ?? "You",
+        avatar: session?.user?.image ?? null,
+        username: null,
+        publicId: "",
+      } as PublicUser,
+      attachments,
+      reactions: {},
+      replyTo: reply,
+      system: false,
+      createdAt: new Date().toISOString(),
+      editedAt: null,
+      status: "sending",
+    };
+    setPending((prev) => [...prev, optimistic]);
+    scrollToBottom(true);
+    post(tempId, content, attachments, reply);
+  }
+
+  function retry(failed: MessageDTO) {
+    const tempId = `temp-${Date.now()}-${tempIdRef.current++}`;
+    setPending((prev) =>
+      prev.map((m) => (m.id === failed.id ? { ...m, id: tempId, status: "sending" } : m))
+    );
+    post(tempId, failed.content, failed.attachments, failed.replyTo);
   }
 
   async function pin(id: string) {
@@ -484,14 +570,14 @@ function Thread({
       >
         {loading ? (
           <Spinner size={18} className="mx-auto mt-8" />
-        ) : messages.length === 0 ? (
+        ) : messages.length === 0 && pending.length === 0 ? (
           <p className={cn("mt-10 text-center text-[13px]", meta?.vanishMode ? "text-white/50" : "text-faint")}>
             Say hi 👋 — this is the start of your conversation.
           </p>
         ) : (
           <div className="mx-auto max-w-3xl">
             <MessageList
-              messages={messages}
+              messages={pending.length ? [...messages, ...pending] : messages}
               meId={meId}
               members={meta?.members ?? []}
               isGroup={!!meta?.isGroup}
@@ -502,6 +588,7 @@ function Thread({
               onDelete={remove}
               onReply={setReplyingTo}
               onPin={pin}
+              onRetry={retry}
               onOpenProfile={onOpenProfile}
             />
           </div>

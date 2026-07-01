@@ -95,6 +95,7 @@ export function EmojiPopover({
         createPortal(
           <div
             ref={popRef}
+            data-portal-popover
             style={{ position: "fixed", top: coords.top, left: coords.left, zIndex: 70 }}
             className="animate-slide-up overflow-hidden rounded-lg border border-border bg-overlay shadow-popover"
           >
