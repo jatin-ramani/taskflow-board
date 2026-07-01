@@ -16,6 +16,13 @@ export async function GET() {
   try {
     const me = await requireUser();
 
+    // Syncing the list = the recipient's client has received everything up to
+    // now, which drives "delivered" (✓✓) receipts on the sender's side.
+    await prisma.conversationParticipant.updateMany({
+      where: { userId: me.id },
+      data: { lastDeliveredAt: new Date() },
+    });
+
     const convos = await prisma.conversation.findMany({
       where: { participants: { some: { userId: me.id } } },
       select: {

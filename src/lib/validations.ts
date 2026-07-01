@@ -64,6 +64,7 @@ export const createProjectSchema = z.object({
   icon: z.string().optional(),
 });
 export const updateProjectSchema = createProjectSchema.partial().extend({
+  description: z.string().max(500).nullable().optional(),
   isFavorite: z.boolean().optional(),
   dueDate: z.string().nullable().optional(),
 });

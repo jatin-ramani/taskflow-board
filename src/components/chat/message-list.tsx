@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash2,
   Check,
+  CheckCheck,
   X,
   Reply,
   Pin,
@@ -318,10 +319,30 @@ export function MessageList({
                           ))}
                         </div>
                       )}
-                      {m.editedAt && (
-                        <span className={cn("ml-1.5 text-[10px]", mine ? "opacity-60" : "text-faint")}>
-                          (edited)
-                        </span>
+                      {(m.editedAt || (mine && m.status)) && (
+                        <div
+                          className={cn(
+                            "mt-0.5 flex items-center gap-1 leading-none",
+                            mine ? "justify-end" : "justify-start"
+                          )}
+                        >
+                          {m.editedAt && (
+                            <span
+                              className={cn("text-[10px]", mine ? "opacity-60" : "text-faint")}
+                            >
+                              (edited)
+                            </span>
+                          )}
+                          {mine && m.status === "sent" && (
+                            <Check size={13} className="text-white/55" />
+                          )}
+                          {mine && m.status === "delivered" && (
+                            <CheckCheck size={14} className="text-white/55" />
+                          )}
+                          {mine && m.status === "seen" && (
+                            <CheckCheck size={14} className="text-sky-300" />
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

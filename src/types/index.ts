@@ -101,6 +101,8 @@ export interface ProjectDetailDTO {
   icon: string;
   isPersonal: boolean;
   ownerId: string;
+  dueDate: string | null;
+  createdAt: string;
   owner: PublicUser;
   members: ProjectMemberDTO[];
   sections: SectionDTO[];
@@ -165,6 +167,8 @@ export interface MessageReplyPreview {
   senderName: string;
 }
 
+export type MessageStatus = "sent" | "delivered" | "seen";
+
 export interface MessageDTO {
   id: string;
   content: string;
@@ -176,6 +180,8 @@ export interface MessageDTO {
   system: boolean;
   createdAt: string;
   editedAt: string | null;
+  /** Delivery status of my own messages (null for received messages). */
+  status?: MessageStatus | null;
 }
 
 export interface GoalDTO {

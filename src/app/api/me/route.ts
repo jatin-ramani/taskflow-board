@@ -14,39 +14,108 @@ const profileSelect = {
   createdAt: true,
 } as const;
 
-// GET /api/me — current user's full profile + lightweight stats.
+// GET /api/me — current user's full profile + stats + rich related content
+// (project progress, active goals, recent activity) for the profile page.
 export async function GET() {
   try {
     const me = await requireUser();
-    const [user, owned, memberOf, tasksDone, tasksOpen, friends, goals] =
-      await Promise.all([
-        prisma.user.findUnique({ where: { id: me.id }, select: profileSelect }),
-        prisma.project.count({ where: { ownerId: me.id } }),
-        prisma.projectMember.count({ where: { userId: me.id } }),
-        prisma.task.count({
-          where: { assigneeId: me.id, deletedAt: null, completedAt: { not: null } },
-        }),
-        prisma.task.count({
-          where: { assigneeId: me.id, deletedAt: null, completedAt: null },
-        }),
-        prisma.friendship.count({
-          where: {
-            status: "ACCEPTED",
-            OR: [{ requesterId: me.id }, { addresseeId: me.id }],
-          },
-        }),
-        prisma.goal.count({ where: { ownerId: me.id } }),
-      ]);
+
+    const myProjects = await prisma.project.findMany({
+      where: { OR: [{ ownerId: me.id }, { members: { some: { userId: me.id } } }] },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, name: true, color: true },
+    });
+    const projectIds = myProjects.map((p) => p.id);
+    const baseWhere = { projectId: { in: projectIds }, deletedAt: null, parentTaskId: null };
+
+    const [
+      user,
+      tasksDone,
+      tasksOpen,
+      friends,
+      goalsCount,
+      totals,
+      dones,
+      activeGoals,
+      recentActivity,
+    ] = await Promise.all([
+      prisma.user.findUnique({ where: { id: me.id }, select: profileSelect }),
+      prisma.task.count({
+        where: { assigneeId: me.id, deletedAt: null, completedAt: { not: null } },
+      }),
+      prisma.task.count({
+        where: { assigneeId: me.id, deletedAt: null, completedAt: null },
+      }),
+      prisma.friendship.count({
+        where: {
+          status: "ACCEPTED",
+          OR: [{ requesterId: me.id }, { addresseeId: me.id }],
+        },
+      }),
+      prisma.goal.count({ where: { ownerId: me.id } }),
+      prisma.task.groupBy({ by: ["projectId"], where: baseWhere, _count: { _all: true } }),
+      prisma.task.groupBy({
+        by: ["projectId"],
+        where: { ...baseWhere, completedAt: { not: null } },
+        _count: { _all: true },
+      }),
+      prisma.goal.findMany({
+        where: { ownerId: me.id, status: "ACTIVE" },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        select: { id: true, title: true, progress: true, targetDate: true },
+      }),
+      prisma.activity.findMany({
+        where: { userId: me.id },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          action: true,
+          createdAt: true,
+          task: { select: { title: true } },
+          project: { select: { name: true, color: true } },
+        },
+      }),
+    ]);
+
+    const totalMap = new Map(totals.map((t) => [t.projectId, t._count._all]));
+    const doneMap = new Map(dones.map((t) => [t.projectId, t._count._all]));
+    const projects = myProjects.slice(0, 5).map((p) => {
+      const total = totalMap.get(p.id) ?? 0;
+      const done = doneMap.get(p.id) ?? 0;
+      return {
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        total,
+        done,
+        pct: total ? Math.round((done / total) * 100) : 0,
+      };
+    });
 
     return NextResponse.json({
       ...user,
       stats: {
-        projects: owned + memberOf,
+        projects: myProjects.length,
         tasksDone,
         tasksOpen,
         friends,
-        goals,
+        goals: goalsCount,
       },
+      projects,
+      goals: activeGoals.map((g) => ({
+        ...g,
+        targetDate: g.targetDate ? g.targetDate.toISOString() : null,
+      })),
+      recentActivity: recentActivity.map((a) => ({
+        id: a.id,
+        action: a.action,
+        createdAt: a.createdAt.toISOString(),
+        taskTitle: a.task?.title ?? null,
+        projectName: a.project?.name ?? null,
+        projectColor: a.project?.color ?? null,
+      })),
     });
   } catch (err) {
     return toErrorResponse(err);

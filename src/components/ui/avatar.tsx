@@ -10,6 +10,7 @@ const sizeMap = {
   md: "h-8 w-8 text-xs",
   lg: "h-10 w-10 text-sm",
   xl: "h-16 w-16 text-lg",
+  "2xl": "h-24 w-24 text-3xl",
 } as const;
 
 // Deterministic accent tint from a string, so avatars are stable per-user.

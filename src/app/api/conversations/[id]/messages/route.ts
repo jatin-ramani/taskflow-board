@@ -10,6 +10,7 @@ import { publicUserSelect } from "@/lib/selectors";
 import { sendMessageSchema } from "@/lib/validations";
 import { publishToUser } from "@/lib/realtime";
 import { isOnline } from "@/lib/utils";
+import type { MessageStatus } from "@/types";
 
 const messageSelect = {
   id: true,
@@ -84,11 +85,29 @@ export async function GET(
           pinnedMessageId: true,
           vanishMode: true,
           participants: {
-            select: { user: { select: { ...publicUserSelect, lastSeenAt: true } } },
+            select: {
+              userId: true,
+              lastReadAt: true,
+              lastDeliveredAt: true,
+              user: { select: { ...publicUserSelect, lastSeenAt: true } },
+            },
           },
         },
       }),
     ]);
+
+    // WhatsApp-style receipts for the current user's own messages: sent → the
+    // others haven't synced; delivered → all others synced after it; seen → all
+    // others read past it. (For groups this means "everyone".)
+    const otherParts = (convo?.participants ?? []).filter((p) => p.userId !== me.id);
+    function statusFor(m: { senderId: string; createdAt: Date }): MessageStatus | null {
+      if (m.senderId !== me.id) return null;
+      if (otherParts.length === 0) return "sent";
+      if (otherParts.every((p) => p.lastReadAt && p.lastReadAt >= m.createdAt)) return "seen";
+      if (otherParts.every((p) => p.lastDeliveredAt && p.lastDeliveredAt >= m.createdAt))
+        return "delivered";
+      return "sent";
+    }
 
     let pinned = null;
     if (convo?.pinnedMessageId) {
@@ -124,7 +143,7 @@ export async function GET(
       : null;
 
     return NextResponse.json({
-      messages: messages.map(shapeMessage),
+      messages: messages.map((m) => ({ ...shapeMessage(m), status: statusFor(m) })),
       meta,
     });
   } catch (err) {
@@ -198,7 +217,7 @@ export async function POST(
       publishToUser(o.userId, { type: "message", conversationId: id });
     }
 
-    return NextResponse.json(shapeMessage(message), { status: 201 });
+    return NextResponse.json({ ...shapeMessage(message), status: "sent" as const }, { status: 201 });
   } catch (err) {
     return toErrorResponse(err);
   }

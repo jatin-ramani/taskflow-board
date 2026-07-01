@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutGrid, List, Hash, Users, CalendarDays, Flag, BarChart3 } from "lucide-react";
+import { LayoutGrid, List, Hash, Users, CalendarDays, Flag, BarChart3, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FullSpinner } from "@/components/ui/spinner";
 import { Avatar } from "@/components/ui/avatar";
@@ -14,6 +14,7 @@ import { MilestonesView } from "@/components/project/milestones-view";
 import { DashboardView } from "@/components/project/dashboard-view";
 import { TaskDetailPanel } from "@/components/task/task-detail-panel";
 import { MembersDialog } from "@/components/project/members-dialog";
+import { ProjectInfo } from "@/components/project/project-info";
 import { FilterBar, DEFAULT_FILTERS, filtersActive, type TaskFilters } from "@/components/project/filter-bar";
 import { useToast } from "@/components/ui/toast";
 import { refreshSidebar } from "@/components/layout/app-sidebar";
@@ -26,7 +27,7 @@ import type {
   PublicUser,
 } from "@/types";
 
-type View = "board" | "list" | "calendar" | "milestones" | "dashboard";
+type View = "board" | "list" | "calendar" | "milestones" | "dashboard" | "info";
 
 function matchesFilters(t: TaskCardDTO, f: TaskFilters): boolean {
   if (f.hideCompleted && t.completedAt) return false;
@@ -70,6 +71,8 @@ export function ProjectView({ projectId }: { projectId: string }) {
   }, [load]);
 
   const canEdit = !!project && project.role !== "VIEWER";
+  const canManage = !!project && (project.role === "OWNER" || project.role === "ADMIN");
+  const isOwner = !!project && project.role === "OWNER";
 
   const assignable = useMemo<PublicUser[]>(() => {
     if (!project) return [];
@@ -84,6 +87,14 @@ export function ProjectView({ projectId }: { projectId: string }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sectionId, taskIds }),
+    });
+  }
+
+  async function reorderSections(sectionIds: string[]) {
+    await fetch(`/api/projects/${projectId}/sections/reorder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sectionIds }),
     });
   }
 
@@ -237,6 +248,10 @@ export function ProjectView({ projectId }: { projectId: string }) {
               <BarChart3 size={14} />
               <span className="hidden md:inline"> Dashboard</span>
             </ViewButton>
+            <ViewButton active={view === "info"} onClick={() => setView("info")}>
+              <Info size={14} />
+              <span className="hidden md:inline"> Info</span>
+            </ViewButton>
           </div>
 
           <Button size="sm" variant="secondary" onClick={() => setMembersOpen(true)}>
@@ -275,6 +290,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
             milestones={project.milestones}
             onSectionsChange={setSections}
             onPersistOrder={persistOrder}
+            onReorderSections={reorderSections}
             onTaskClick={setSelectedTaskId}
             onToggleComplete={toggleComplete}
             onQuickAdd={quickAdd}
@@ -312,6 +328,17 @@ export function ProjectView({ projectId }: { projectId: string }) {
           />
         )}
         {view === "dashboard" && <DashboardView projectId={projectId} />}
+        {view === "info" && (
+          <ProjectInfo
+            project={project}
+            projectId={projectId}
+            canEdit={canEdit}
+            canManage={canManage}
+            isOwner={isOwner}
+            taskCount={sections.reduce((n, s) => n + s.tasks.length, 0)}
+            onChanged={load}
+          />
+        )}
       </div>
 
       {selectedTaskId && (

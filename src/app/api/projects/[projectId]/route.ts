@@ -29,6 +29,8 @@ export async function GET(
         icon: true,
         isPersonal: true,
         ownerId: true,
+        dueDate: true,
+        createdAt: true,
         owner: { select: publicUserSelect },
         members: {
           select: {
@@ -101,11 +103,12 @@ export async function PATCH(
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const d = parsed.data;
 
-    // Favouriting is allowed for any member; structural edits require ADMIN.
+    // Favouriting is allowed for any member; editing project details requires
+    // edit access (EDITOR+). Member management / deletion stay ADMIN/OWNER.
     const onlyFavorite =
       d.isFavorite !== undefined &&
       Object.keys(d).filter((k) => k !== "isFavorite").length === 0;
-    await requireProjectRole(me.id, projectId, onlyFavorite ? "VIEWER" : "ADMIN");
+    await requireProjectRole(me.id, projectId, onlyFavorite ? "VIEWER" : "EDITOR");
 
     const data: Record<string, unknown> = {};
     if (d.name !== undefined) data.name = d.name;

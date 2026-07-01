@@ -338,7 +338,8 @@ model ConversationParticipant {
   id             String    @id @default(auto()) @map("_id") @db.ObjectId
   conversationId String    @db.ObjectId
   userId         String    @db.ObjectId
-  lastReadAt     DateTime? // drives unread counts
+  lastReadAt      DateTime? // drives unread counts
+  lastDeliveredAt DateTime? // "delivered" receipts — set when the recipient's client syncs
   muted          Boolean   @default(false)
   favorite       Boolean   @default(false)
   clearedAt      DateTime? // hide messages before this point (clear/delete history)
