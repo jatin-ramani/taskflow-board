@@ -128,8 +128,10 @@ export function ConversationList({
                     <button
                       onClick={() => onSelect(c.id)}
                       className={cn(
-                        "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors",
-                        selectedId === c.id ? "bg-surface" : "hover:bg-surface"
+                        "relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors",
+                        selectedId === c.id
+                          ? "bg-accent-soft before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-accent"
+                          : "hover:bg-surface"
                       )}
                     >
                       <ConvoAvatar convo={c} />

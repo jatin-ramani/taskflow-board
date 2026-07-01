@@ -9,7 +9,7 @@ import {
 import { reactSchema } from "@/lib/validations";
 import { publishToUser } from "@/lib/realtime";
 
-// POST /api/messages/[messageId]/react — toggle a reaction (one per user, Teams-style).
+// POST /api/messages/[messageId]/react — toggle a reaction (multiple allowed per user).
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ messageId: string }> }
@@ -33,16 +33,14 @@ export async function POST(
     const reactions: Record<string, string[]> = {
       ...((message.reactions as Record<string, string[]>) ?? {}),
     };
-    const alreadyOnEmoji = (reactions[emoji] ?? []).includes(me.id);
+    const list = reactions[emoji] ?? [];
 
-    // One reaction per user: clear me from every emoji first.
-    for (const key of Object.keys(reactions)) {
-      reactions[key] = reactions[key].filter((id) => id !== me.id);
-      if (reactions[key].length === 0) delete reactions[key];
-    }
-    // Toggle: if I wasn't already on this emoji, add me.
-    if (!alreadyOnEmoji) {
-      reactions[emoji] = [...(reactions[emoji] ?? []), me.id];
+    // Multiple reactions per user: toggle only this emoji, leave others intact.
+    if (list.includes(me.id)) {
+      reactions[emoji] = list.filter((id) => id !== me.id);
+      if (reactions[emoji].length === 0) delete reactions[emoji];
+    } else {
+      reactions[emoji] = [...list, me.id];
     }
 
     await prisma.message.update({

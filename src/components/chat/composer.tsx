@@ -143,7 +143,7 @@ export function Composer({
     "flex h-7 w-7 items-center justify-center rounded text-faint transition-colors hover:bg-surface hover:text-text";
 
   return (
-    <div className="rounded-md border border-border bg-elevated transition-colors focus-within:border-accent">
+    <div className="rounded-2xl border border-border bg-elevated shadow-sm transition-all focus-within:border-accent focus-within:shadow-md">
       {/* Reply bar */}
       {replyTo && (
         <div className="flex items-start gap-2 border-b border-border px-3 py-1.5">
@@ -256,13 +256,13 @@ export function Composer({
             disabled={sending || !canSend}
             title="Send"
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded transition-colors",
+              "flex h-8 w-8 items-center justify-center rounded-full transition-all",
               canSend
-                ? "text-accent hover:bg-accent-soft"
+                ? "bg-accent text-white shadow-sm hover:bg-accent-hover"
                 : "text-faint disabled:cursor-default"
             )}
           >
-            {sending ? <Spinner size={15} /> : <SendHorizontal size={17} />}
+            {sending ? <Spinner size={15} /> : <SendHorizontal size={16} />}
           </button>
         </div>
       </div>

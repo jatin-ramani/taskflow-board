@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import {
   SmilePlus,
@@ -18,7 +19,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { renderMarkdown } from "@/lib/markdown";
 import { QUICK_REACTIONS, EmojiPopover } from "./emoji-picker";
 import { Lightbox } from "./lightbox";
-import type { MessageDTO } from "@/types";
+import type { MessageDTO, MemberPresence } from "@/types";
 
 function dayLabel(d: Date) {
   if (isToday(d)) return "Today";
@@ -29,6 +30,7 @@ function dayLabel(d: Date) {
 export function MessageList({
   messages,
   meId,
+  members = [],
   isGroup,
   pinnedId,
   vanish = false,
@@ -41,6 +43,7 @@ export function MessageList({
 }: {
   messages: MessageDTO[];
   meId: string;
+  members?: MemberPresence[];
   isGroup: boolean;
   pinnedId?: string | null;
   vanish?: boolean;
@@ -104,17 +107,19 @@ export function MessageList({
       movedRef.current = true;
       if (lpTimer.current) clearTimeout(lpTimer.current);
     }
-    if (Math.abs(dx) > Math.abs(dy) + 4 && dx < 0) {
-      setSwipe({ id: m.id, dx: Math.max(dx, -90) });
+    if (Math.abs(dx) > Math.abs(dy) + 4) {
+      // Swipe either direction to reply.
+      setSwipe({ id: m.id, dx: Math.max(-90, Math.min(90, dx)) });
     }
   }
   function touchEnd(m: MessageDTO) {
     if (lpTimer.current) clearTimeout(lpTimer.current);
-    if (swipe?.id === m.id && swipe.dx <= -55) onReply(m);
+    if (swipe?.id === m.id && Math.abs(swipe.dx) >= 55) onReply(m);
     setSwipe(null);
     touchRef.current = null;
   }
 
+  const userById = new Map(members.map((u) => [u.id, u]));
   const allImages = messages.flatMap((m) => m.attachments);
   let lastDay = "";
 
@@ -174,11 +179,26 @@ export function MessageList({
 
             <div
               className={cn(
-                "flex gap-2.5",
+                "relative flex touch-pan-y gap-2.5",
                 mine ? "flex-row-reverse" : "flex-row",
                 grouped ? "mt-0.5" : "mt-2"
               )}
+              onTouchStart={(e) => touchStart(m, e)}
+              onTouchMove={(e) => touchMove(m, e)}
+              onTouchEnd={() => touchEnd(m)}
             >
+              {/* Swipe-to-reply hint (appears from the side you swipe from) */}
+              {swipe?.id === m.id && Math.abs(swipe.dx) > 10 && (
+                <span
+                  className={cn(
+                    "absolute top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-accent-soft text-accent",
+                    swipe.dx < 0 ? "right-2" : "left-2"
+                  )}
+                  style={{ opacity: Math.min(1, Math.abs(swipe.dx) / 55) }}
+                >
+                  <Reply size={14} />
+                </span>
+              )}
               {!mine &&
                 (grouped ? (
                   <div className="w-7 shrink-0" />
@@ -191,7 +211,13 @@ export function MessageList({
                   </button>
                 ))}
 
-              <div className={cn("flex min-w-0 max-w-[78%] flex-col", mine && "items-end")}>
+              <div
+                className={cn("flex min-w-0 max-w-[78%] flex-col", mine && "items-end")}
+                style={{
+                  transform: swipe?.id === m.id ? `translateX(${swipe.dx}px)` : undefined,
+                  transition: swipe?.id === m.id ? "none" : "transform 0.15s ease-out",
+                }}
+              >
                 {!grouped && (
                   <div className={cn("mb-0.5 flex items-baseline gap-2", mine && "flex-row-reverse")}>
                     {!mine && isGroup && (
@@ -205,25 +231,7 @@ export function MessageList({
                   </div>
                 )}
 
-                <div
-                  className="group relative w-fit touch-pan-y"
-                  onTouchStart={(e) => touchStart(m, e)}
-                  onTouchMove={(e) => touchMove(m, e)}
-                  onTouchEnd={() => touchEnd(m)}
-                  style={{
-                    transform: swipe?.id === m.id ? `translateX(${swipe.dx}px)` : undefined,
-                    transition: swipe?.id === m.id ? "none" : "transform 0.15s ease-out",
-                  }}
-                >
-                  {/* Swipe-to-reply hint */}
-                  {swipe?.id === m.id && swipe.dx < -10 && (
-                    <span
-                      className="absolute right-0 top-1/2 flex h-7 w-7 -translate-y-1/2 translate-x-9 items-center justify-center rounded-full bg-accent-soft text-accent"
-                      style={{ opacity: Math.min(1, -swipe.dx / 55) }}
-                    >
-                      <Reply size={14} />
-                    </span>
-                  )}
+                <div className="group relative w-fit">
                   {editing ? (
                     <div className="min-w-[220px] rounded-md border border-accent bg-elevated p-2">
                       <textarea
@@ -254,9 +262,15 @@ export function MessageList({
                   ) : (
                     <div
                       className={cn(
-                        "w-fit max-w-full overflow-hidden rounded-lg text-[13px] leading-relaxed",
-                        !imageOnly && "px-3 py-1.5",
-                        !imageOnly && (mine ? "bg-msg-mine text-msg-mine-fg" : "bg-surface text-text")
+                        "w-fit max-w-full overflow-hidden text-[13px] leading-relaxed",
+                        imageOnly
+                          ? "rounded-[18px]"
+                          : cn(
+                              "rounded-[18px] px-3.5 py-2",
+                              mine
+                                ? "bubble-mine rounded-br-[5px]"
+                                : "bubble-other rounded-bl-[5px]"
+                            )
                       )}
                     >
                       {isPinned && (
@@ -268,10 +282,17 @@ export function MessageList({
                         <button
                           type="button"
                           onClick={() => m.replyTo && scrollToMessage(m.replyTo.id)}
-                          className="mb-1 block w-full rounded border-l-2 border-accent/70 pl-2 text-left opacity-80 transition-opacity hover:opacity-100"
+                          className={cn(
+                            "mb-1.5 flex w-full flex-col overflow-hidden rounded-lg border-l-2 py-1 pl-2.5 pr-4 text-left transition-opacity hover:opacity-100",
+                            mine
+                              ? "border-white/70 bg-white/15 opacity-95"
+                              : "border-accent/70 bg-black/[0.05] opacity-90 dark:bg-white/[0.06]"
+                          )}
                         >
-                          <p className="text-[11px] font-semibold">{m.replyTo.senderName}</p>
-                          <p className="truncate text-[12px]">{m.replyTo.content}</p>
+                          <p className="truncate text-[11px] font-semibold">
+                            {m.replyTo.senderName}
+                          </p>
+                          <p className="truncate text-[12px] opacity-90">{m.replyTo.content}</p>
                         </button>
                       )}
                       {m.content && (
@@ -280,21 +301,23 @@ export function MessageList({
                           dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
                         />
                       )}
-                      <div className={cn("flex flex-col gap-1", m.content && "mt-1.5")}>
-                        {m.attachments.map((url) => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={url}
-                            src={url}
-                            alt="attachment"
-                            onClick={() => setLightbox(allImages.indexOf(url))}
-                            className={cn(
-                              "block max-h-72 max-w-full cursor-pointer rounded-lg object-cover",
-                              !imageOnly && "border border-black/10"
-                            )}
-                          />
-                        ))}
-                      </div>
+                      {m.attachments.length > 0 && (
+                        <div className={cn("flex flex-col gap-1", m.content && "mt-1.5")}>
+                          {m.attachments.map((url) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={url}
+                              src={url}
+                              alt="attachment"
+                              onClick={() => setLightbox(allImages.indexOf(url))}
+                              className={cn(
+                                "block max-h-72 max-w-full cursor-pointer rounded-lg object-cover",
+                                !imageOnly && "border border-black/10"
+                              )}
+                            />
+                          ))}
+                        </div>
+                      )}
                       {m.editedAt && (
                         <span className={cn("ml-1.5 text-[10px]", mine ? "opacity-60" : "text-faint")}>
                           (edited)
@@ -378,21 +401,27 @@ export function MessageList({
                       mine ? "justify-end pr-1.5" : "justify-start pl-1.5"
                     )}
                   >
-                    {reactionEntries.map(([emoji, ids]) => (
-                      <button
+                    {reactionEntries.slice(0, 3).map(([emoji, ids]) => (
+                      <ReactionChip
                         key={emoji}
-                        onClick={() => onReact(m.id, emoji)}
-                        className={cn(
-                          "flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] shadow-sm transition-colors",
-                          ids.includes(meId)
-                            ? "border-accent bg-accent-soft text-accent"
-                            : "border-border bg-elevated text-muted hover:bg-surface"
-                        )}
-                      >
-                        <span className="text-[12px] leading-none">{emoji}</span>
-                        <span className="font-medium">{ids.length}</span>
-                      </button>
+                        emoji={emoji}
+                        ids={ids}
+                        meId={meId}
+                        userById={userById}
+                        align={mine ? "right" : "left"}
+                        onToggle={() => onReact(m.id, emoji)}
+                      />
                     ))}
+                    {reactionEntries.length > 3 && (
+                      <MoreReactionsChip
+                        entries={reactionEntries}
+                        extra={reactionEntries.length - 3}
+                        meId={meId}
+                        userById={userById}
+                        align={mine ? "right" : "left"}
+                        onReact={(emoji) => onReact(m.id, emoji)}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -410,5 +439,250 @@ export function MessageList({
         />
       )}
     </div>
+  );
+}
+
+function useCanHover() {
+  const [can, setCan] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    setCan(mq.matches);
+    const h = () => setCan(mq.matches);
+    mq.addEventListener?.("change", h);
+    return () => mq.removeEventListener?.("change", h);
+  }, []);
+  return can;
+}
+
+// Portal-positioned popover: anchors to the trigger's edge (grows up or down
+// depending on space), caps height to the viewport, and never clips inside the
+// scrolling chat. Hover-open with a small close delay on hover devices.
+function useFloating(align: "left" | "right", width: number) {
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<React.CSSProperties | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canHover = useCanHover();
+
+  function place() {
+    const r = triggerRef.current?.getBoundingClientRect();
+    if (!r) return;
+    let left = align === "right" ? r.right - width : r.left;
+    left = Math.min(Math.max(8, left), window.innerWidth - width - 8);
+    const CAP = 240; // keep the list compact + scrollable
+    const spaceAbove = r.top - 12;
+    const spaceBelow = window.innerHeight - r.bottom - 12;
+    const base: React.CSSProperties = { position: "fixed", left, width, zIndex: 70 };
+    // Prefer opening upward (reactions usually sit low); flip down if cramped.
+    if (spaceAbove >= 140 || spaceAbove >= spaceBelow) {
+      setStyle({ ...base, bottom: window.innerHeight - r.top + 6, maxHeight: Math.min(spaceAbove, CAP) });
+    } else {
+      setStyle({ ...base, top: r.bottom + 6, maxHeight: Math.min(spaceBelow, CAP) });
+    }
+  }
+  function show() {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    place();
+    setOpen(true);
+  }
+  function scheduleClose() {
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (
+        triggerRef.current?.contains(e.target as Node) ||
+        popRef.current?.contains(e.target as Node)
+      )
+        return;
+      setOpen(false);
+    };
+    // Close only when the page/chat scrolls — not when scrolling inside the popover.
+    const onScroll = (e: Event) => {
+      if (popRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [open]);
+
+  const hoverProps = canHover ? { onMouseEnter: show, onMouseLeave: scheduleClose } : {};
+  return { open, setOpen, style, triggerRef, popRef, canHover, hoverProps };
+}
+
+// A reaction pill. Desktop: hover shows who reacted, click removes yours.
+// Mobile: tap opens the list; tap your own row to remove.
+function ReactionChip({
+  emoji,
+  ids,
+  meId,
+  userById,
+  align,
+  onToggle,
+}: {
+  emoji: string;
+  ids: string[];
+  meId: string;
+  userById: Map<string, MemberPresence>;
+  align: "left" | "right";
+  onToggle: () => void;
+}) {
+  const reactedByMe = ids.includes(meId);
+  const { open, setOpen, style, triggerRef, popRef, canHover, hoverProps } =
+    useFloating(align, 208);
+
+  const reactors = ids.map((id) => ({
+    id,
+    name: id === meId ? "You" : userById.get(id)?.name ?? "Someone",
+    avatar: userById.get(id)?.avatar ?? null,
+  }));
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        {...hoverProps}
+        onClick={() => (canHover ? onToggle() : setOpen((o) => !o))}
+        className={cn(
+          "flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] shadow-sm transition-colors",
+          reactedByMe
+            ? "border-accent bg-accent-soft text-accent"
+            : "border-border bg-elevated text-muted hover:bg-surface"
+        )}
+      >
+        <span className="text-[12px] leading-none">{emoji}</span>
+        <span className="font-medium">{ids.length}</span>
+      </button>
+
+      {open &&
+        style &&
+        createPortal(
+          <div
+            ref={popRef}
+            {...hoverProps}
+            style={style}
+            className="animate-slide-up flex flex-col overflow-hidden rounded-md border border-border bg-overlay p-1 shadow-popover"
+          >
+            <p className="flex shrink-0 items-center gap-1.5 px-2 py-1 text-[11px] font-semibold text-faint">
+              <span className="text-[13px]">{emoji}</span> {ids.length} reacted
+            </p>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {reactors.map((u) => (
+                <button
+                  key={u.id}
+                  disabled={u.id !== meId}
+                  onClick={() => {
+                    if (u.id === meId) {
+                      onToggle();
+                      setOpen(false);
+                    }
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px]",
+                    u.id === meId ? "hover:bg-surface" : "cursor-default"
+                  )}
+                >
+                  <Avatar name={u.name} src={u.avatar} size="xs" />
+                  <span className="flex-1 truncate">{u.name}</span>
+                  {u.id === meId ? (
+                    <span className="text-[10px] font-medium text-danger">Remove</span>
+                  ) : (
+                    <span className="text-[12px]">{emoji}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
+
+// Collapsed "+N" pill shown when a message has many reactions. Opens a combined
+// "More reactions" list of every reactor; you can remove your own.
+function MoreReactionsChip({
+  entries,
+  extra,
+  meId,
+  userById,
+  align,
+  onReact,
+}: {
+  entries: [string, string[]][];
+  extra: number;
+  meId: string;
+  userById: Map<string, MemberPresence>;
+  align: "left" | "right";
+  onReact: (emoji: string) => void;
+}) {
+  const { open, setOpen, style, triggerRef, popRef, hoverProps } = useFloating(align, 224);
+
+  const rows = entries.flatMap(([emoji, ids]) =>
+    ids.map((id) => ({
+      key: `${emoji}-${id}`,
+      emoji,
+      id,
+      name: id === meId ? "You" : userById.get(id)?.name ?? "Someone",
+      avatar: userById.get(id)?.avatar ?? null,
+    }))
+  );
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        {...hoverProps}
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center rounded-full border border-border bg-elevated px-1.5 py-0.5 text-[11px] font-medium text-muted shadow-sm transition-colors hover:bg-surface"
+      >
+        +{extra}
+      </button>
+      {open &&
+        style &&
+        createPortal(
+          <div
+            ref={popRef}
+            {...hoverProps}
+            style={style}
+            className="animate-slide-up flex flex-col overflow-hidden rounded-md border border-border bg-overlay p-1 shadow-popover"
+          >
+            <p className="shrink-0 px-2 py-1 text-[11px] font-semibold text-faint">More reactions</p>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {rows.map((u) => (
+                <button
+                  key={u.key}
+                  disabled={u.id !== meId}
+                  onClick={() => {
+                    if (u.id === meId) {
+                      onReact(u.emoji);
+                      setOpen(false);
+                    }
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px]",
+                    u.id === meId ? "hover:bg-surface" : "cursor-default"
+                  )}
+                >
+                  <Avatar name={u.name} src={u.avatar} size="xs" />
+                  <span className="flex-1 truncate">{u.name}</span>
+                  <span className="text-[13px]">{u.emoji}</span>
+                  {u.id === meId && <X size={13} className="text-faint" />}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }

@@ -478,8 +478,8 @@ function Thread({
       <div
         ref={scrollRef}
         className={cn(
-          "flex-1 overflow-y-auto px-3 py-4 transition-colors sm:px-5",
-          meta?.vanishMode && "bg-[#15131f] dark:bg-black"
+          "flex-1 overflow-y-auto px-3 py-5 transition-colors sm:px-5",
+          meta?.vanishMode ? "bg-[#15131f] dark:bg-black" : "chat-canvas"
         )}
       >
         {loading ? (
@@ -493,6 +493,7 @@ function Thread({
             <MessageList
               messages={messages}
               meId={meId}
+              members={meta?.members ?? []}
               isGroup={!!meta?.isGroup}
               pinnedId={meta?.pinned?.id}
               vanish={!!meta?.vanishMode}

@@ -38,6 +38,7 @@
   /* Chat message surfaces */
   --color-msg-mine: var(--c-msg-mine);
   --color-msg-mine-fg: var(--c-msg-mine-fg);
+  --color-msg-other: var(--c-msg-other);
 
   /* Minimal, professional roundness (Superworks ~5px) */
   --radius-sm: 3px;
@@ -58,38 +59,47 @@
 :root {
   color-scheme: light;
 
-  --c-bg: #f5f8fc;
+  --c-bg: #eceff5;
   --c-elevated: #ffffff;
-  --c-surface: #eef3fb;
+  --c-surface: #e4e9f2;
   --c-overlay: #ffffff;
   --c-sidebar: #ffffff;
-  --c-border: #e5eaf2;
-  --c-border-strong: #d4dbe8;
+  --c-border: #dde3ec;
+  --c-border-strong: #c8d0dd;
 
-  --c-text: #1f2937;
-  --c-muted: #6b7280;
-  --c-faint: #9aa3b2;
+  --c-text: #1e293b;
+  --c-muted: #5a6474;
+  --c-faint: #929cad;
 
   --c-accent: #4f9dff;
   --c-accent-hover: #2f80ed;
-  --c-accent-soft: #eaf4ff;
+  --c-accent-soft: #e2eefe;
 
-  --c-msg-mine: #eaf4ff;
-  --c-msg-mine-fg: #1f2937;
+  --c-msg-mine: #d5e7ff;
+  --c-msg-mine-fg: #14345c;
+  --c-msg-other: #ffffff;
 
-  --c-success: #22c55e;
-  --c-warning: #f5a623;
+  /* Chat surface — canvas + bubble gradient/borders */
+  --c-chat-bg: #eef1f7;
+  --c-chat-glow: rgba(79, 157, 255, 0.09);
+  --c-mine-a: #4f9dff;
+  --c-mine-b: #2f80ed;
+  --c-bubble-border: #e4e8f1;
+
+  --c-success: #16a34a;
+  --c-warning: #e08a00;
   --c-danger: #ef4444;
   --c-danger-hover: #dc2626;
 
-  --c-scrollbar: #cdd5e0;
-  --c-scrollbar-hover: #b4bdcb;
+  --c-scrollbar: #c6cfdc;
+  --c-scrollbar-hover: #aab4c4;
 
-  /* Cool slate-tinted elevation (cleaner than purple-gray) */
-  --sh-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --sh-md: 0 2px 8px rgba(16, 24, 40, 0.07), 0 1px 3px rgba(16, 24, 40, 0.05);
-  --sh-lg: 0 12px 32px rgba(16, 24, 40, 0.12), 0 4px 10px rgba(16, 24, 40, 0.06);
-  --sh-popover: 0 8px 28px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.07);
+  /* Cool slate-tinted elevation — a touch stronger so white cards lift off the
+     gray canvas. */
+  --sh-sm: 0 1px 2px rgba(15, 23, 42, 0.07);
+  --sh-md: 0 2px 8px rgba(15, 23, 42, 0.09), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --sh-lg: 0 14px 34px rgba(15, 23, 42, 0.14), 0 4px 10px rgba(15, 23, 42, 0.07);
+  --sh-popover: 0 10px 30px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.08);
 }
 
 /* ---------- Dark (Teams / Fluent) ---------- */
@@ -114,6 +124,14 @@
 
   --c-msg-mine: #28394f;
   --c-msg-mine-fg: #f5f5f5;
+  --c-msg-other: #262626;
+
+  /* Chat surface — canvas + bubble gradient/borders */
+  --c-chat-bg: #191919;
+  --c-chat-glow: rgba(79, 157, 255, 0.06);
+  --c-mine-a: #3b82f6;
+  --c-mine-b: #2563eb;
+  --c-bubble-border: #383838;
 
   --c-success: #34d058;
   --c-warning: #ffaa44;
@@ -259,6 +277,17 @@ input[type="number"] {
   appearance: textfield;
 }
 
+/* Prevent iOS/Android from auto-zooming when focusing an input: mobile
+   browsers zoom whenever a control's font-size is < 16px. Unlayered so it
+   beats Tailwind's text-size utilities; only on small (touch) screens. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* Chat markdown: break long URLs/words so they never overflow the bubble. */
 .chat-md {
   overflow-wrap: anywhere;
@@ -271,4 +300,36 @@ input[type="number"] {
 }
 .chat-md a:hover {
   color: var(--color-accent-hover);
+}
+
+/* ============================================================
+   Chat surface — canvas + bubbles. Hand-written (unlayered) so
+   they resolve the theme vars directly and never get stuck on
+   the wrong mode the way a generated color utility can.
+   ============================================================ */
+.chat-canvas {
+  background-color: var(--c-chat-bg);
+  background-image: radial-gradient(120% 55% at 50% -8%, var(--c-chat-glow), transparent 60%);
+}
+
+/* Sent bubble — vibrant on-brand gradient, white text. */
+.bubble-mine {
+  background-image: linear-gradient(135deg, var(--c-mine-a), var(--c-mine-b));
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(47, 128, 237, 0.28);
+}
+.bubble-mine .chat-md a {
+  color: #fff;
+  text-decoration-color: rgba(255, 255, 255, 0.65);
+}
+.bubble-mine ::selection {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Received bubble — clean card that lifts off the canvas. */
+.bubble-other {
+  background-color: var(--c-msg-other);
+  color: var(--c-text);
+  border: 1px solid var(--c-bubble-border);
+  box-shadow: var(--sh-sm);
 }
