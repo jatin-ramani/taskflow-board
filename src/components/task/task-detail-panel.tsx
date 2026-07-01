@@ -552,14 +552,14 @@ export function TaskDetailPanel({
               </div>
 
               {/* Right: activity / comments / work log + composer */}
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <div className="flex min-w-0 flex-col md:min-h-0 md:flex-1">
                 <div className="flex items-center gap-1 border-b border-border px-3">
                   <TabBtn icon={<History size={13} />} label="Activity" active={tab === "activity"} onClick={() => setTab("activity")} />
                   <TabBtn icon={<MessageSquare size={13} />} label={`Comments${task.comments.length ? ` ${task.comments.length}` : ""}`} active={tab === "comments"} onClick={() => setTab("comments")} />
                   <TabBtn icon={<Clock size={13} />} label="Work Log" active={tab === "worklog"} onClick={() => setTab("worklog")} />
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                <div className="px-4 py-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
                   {tab === "comments" && (
                     <div className="flex flex-col gap-4">
                       {task.comments.map((c) => (

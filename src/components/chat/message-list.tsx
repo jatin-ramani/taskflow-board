@@ -55,6 +55,16 @@ export function MessageList({
   const [editText, setEditText] = useState("");
   const [lightbox, setLightbox] = useState<number | null>(null);
 
+  const [flashId, setFlashId] = useState<string | null>(null);
+
+  function scrollToMessage(id: string) {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashId(id);
+    setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1300);
+  }
+
   // Mobile gestures: long-press opens the action menu, left-swipe replies.
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [swipe, setSwipe] = useState<{ id: string; dx: number } | null>(null);
@@ -151,7 +161,7 @@ export function MessageList({
           !m.content && !m.replyTo && !isPinned && m.attachments.length > 0;
 
         return (
-          <div key={m.id}>
+          <div key={m.id} id={`msg-${m.id}`} className={cn(flashId === m.id && "msg-flash")}>
             {showDay && (
               <div className="my-3 flex items-center gap-3">
                 <div className={cn("h-px flex-1", vanish ? "bg-white/15" : "bg-border")} />
@@ -255,10 +265,14 @@ export function MessageList({
                         </div>
                       )}
                       {m.replyTo && (
-                        <div className="mb-1 border-l-2 border-accent/70 pl-2 opacity-80">
+                        <button
+                          type="button"
+                          onClick={() => m.replyTo && scrollToMessage(m.replyTo.id)}
+                          className="mb-1 block w-full rounded border-l-2 border-accent/70 pl-2 text-left opacity-80 transition-opacity hover:opacity-100"
+                        >
                           <p className="text-[11px] font-semibold">{m.replyTo.senderName}</p>
                           <p className="truncate text-[12px]">{m.replyTo.content}</p>
-                        </div>
+                        </button>
                       )}
                       {m.content && (
                         <div

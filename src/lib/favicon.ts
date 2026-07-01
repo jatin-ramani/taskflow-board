@@ -3,7 +3,7 @@
 // Draws an unread badge (red circle + count) over the app logo and swaps the
 // favicon. Pass 0 to restore the plain logo.
 
-const BASE = "/logo-light.svg";
+const BASE = "/favicon/favicon-32x32.png";
 let baseImg: HTMLImageElement | null = null;
 
 function iconLink(): HTMLLinkElement {
